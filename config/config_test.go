@@ -43,7 +43,7 @@ var _ = Describe("Config", func() {
 				Expect(err).Should(BeNil())
 				Expect(c.MetricsPath).To(Equal("/metrics"))
 				Expect(c.APIBaseURL).To(Equal("https://api.nature.global"))
-				Expect(c.ListenPort).To(Equal("9470"))
+				Expect(c.ListenPort).To(Equal("9352"))
 				Expect(c.CacheInvalidationSeconds).To(Equal(60))
 
 			})

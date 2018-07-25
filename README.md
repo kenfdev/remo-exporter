@@ -14,7 +14,7 @@ This exporter is configurable via environment variables:
 
 * `METRICS_PATH` The metrics URL path. Default `/metrics`.
 * `API_BASE_URL` The Remo API base URL. Default `https://api.nature.global`.
-* `PORT` The port to be used by the exporter. Default `9470`.
+* `PORT` The port to be used by the exporter. Default `9352`.
 * `CACHE_INVALIDATION_SECONDS` This exporter caches results for this perios of seconds. Default `60`.
 
 ## Metrics

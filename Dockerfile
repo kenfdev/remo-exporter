@@ -18,6 +18,6 @@ RUN apk --no-cache add ca-certificates \
      && adduser -S -G exporter exporter
 USER exporter
 COPY --from=build /bin/main /bin/main
-ENV LISTEN_PORT=9470
-EXPOSE 9470
+ENV LISTEN_PORT=9352
+EXPOSE 9352
 ENTRYPOINT [ "/bin/main" ]

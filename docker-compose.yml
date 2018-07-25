@@ -3,7 +3,7 @@ version: "3"
 services:
   remo-exporter:
     ports:
-      - 9470:9470
+      - 9352:9352
     image: kenfdev/remo-exporter:latest 
     environment:
       - OAUTH_TOKEN=${REMO_OAUTH_TOKEN}

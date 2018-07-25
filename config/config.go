@@ -32,7 +32,7 @@ func NewConfig() (*Config, error) {
 
 	metricsPath := getEnv("METRICS_PATH", "/metrics")
 	baseURL := getEnv("API_BASE_URL", "https://api.nature.global")
-	listenPort := getEnv("PORT", "9470")
+	listenPort := getEnv("PORT", "9352")
 	cacheInvalidationSeconds, err := strconv.Atoi(getEnv("CACHE_INVALIDATION_SECONDS", "60"))
 	if err != nil {
 		return nil, err

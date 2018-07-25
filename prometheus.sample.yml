@@ -26,4 +26,4 @@ scrape_configs:
   - job_name: "remo"
     scrape_interval: "60s"
     static_configs:
-      - targets: ['remo-exporter:9470']
+      - targets: ['remo-exporter:9352']
