@@ -1,6 +1,8 @@
 package exporter
 
 import (
+	"strconv"
+
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/kenfdev/remo-exporter/config"
@@ -31,6 +33,32 @@ var (
 		"The illumination of the remo device",
 		[]string{"name", "id"}, nil,
 	)
+
+	rateLimitLimit = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "x_rate_limit_limit"),
+		"The rate limit for the remo API",
+		nil, nil,
+	)
+
+	rateLimitReset = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "x_rate_limit_reset"),
+		"The time in which the rate limit for the remo API will be reset",
+		nil, nil,
+	)
+
+	rateLimitRemaining = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "x_rate_limit_remaining"),
+		"The remaining number of request for the remo API",
+		nil, nil,
+	)
+
+	httpRequestsTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: namespace,
+		Name:      "http_requests_total",
+		Help:      "The total number of requests labeled by response code",
+	},
+		[]string{"code"},
+	)
 )
 
 // Exporter collects ECS clusters metrics
@@ -52,6 +80,10 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- temperature
 	ch <- humidity
 	ch <- illumination
+	ch <- rateLimitLimit
+	ch <- rateLimitReset
+	ch <- rateLimitRemaining
+	httpRequestsTotal.Describe(ch)
 }
 
 // Collect collects data to be consumed by prometheus
@@ -70,11 +102,25 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 
 }
 
-func (e *Exporter) processMetrics(deviceData []*types.Device, ch chan<- prometheus.Metric) error {
-	for _, d := range deviceData {
+func (e *Exporter) processMetrics(devicesResult *types.GetDevicesResult, ch chan<- prometheus.Metric) error {
+	for _, d := range devicesResult.Devices {
 		ch <- prometheus.MustNewConstMetric(temperature, prometheus.GaugeValue, d.NewestEvents.Temperature.Value, d.Name, d.ID)
 		ch <- prometheus.MustNewConstMetric(humidity, prometheus.GaugeValue, d.NewestEvents.Humidity.Value, d.Name, d.ID)
 		ch <- prometheus.MustNewConstMetric(illumination, prometheus.GaugeValue, d.NewestEvents.Illumination.Value, d.Name, d.ID)
+	}
+
+	if devicesResult.Meta != nil {
+		ch <- prometheus.MustNewConstMetric(rateLimitLimit, prometheus.GaugeValue, devicesResult.Meta.RateLimitLimit)
+		ch <- prometheus.MustNewConstMetric(rateLimitRemaining, prometheus.GaugeValue, devicesResult.Meta.RateLimitRemaining)
+		ch <- prometheus.MustNewConstMetric(rateLimitReset, prometheus.GaugeValue, devicesResult.Meta.RateLimitReset)
+	}
+
+	if devicesResult.StatusCode > 0 {
+		if !devicesResult.IsCache {
+			// increment the counter only if it's not a cache
+			httpRequestsTotal.WithLabelValues(strconv.Itoa(devicesResult.StatusCode)).Inc()
+		}
+		httpRequestsTotal.Collect(ch)
 	}
 
 	return nil

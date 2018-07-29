@@ -77,12 +77,12 @@ var _ = Describe("Remo", func() {
 				c, _ := config.NewConfig()
 				rc, _ := NewRemoClient(c, authClient)
 
-				devices, err := rc.GetDevices()
+				result, err := rc.GetDevices()
 
 				Expect(err).Should(BeNil())
-				Expect(len(devices)).To(BeNumerically(">", 0))
+				Expect(len(result.Devices)).To(BeNumerically(">", 0))
 
-				device := devices[0]
+				device := result.Devices[0]
 				Expect(device.Name).To(Equal("Living Remo"))
 				Expect(device.NewestEvents.Humidity.Value).To(Equal(float64(50)))
 				Expect(device.NewestEvents.Illumination.Value).To(Equal(float64(25.2)))
@@ -96,7 +96,11 @@ var _ = Describe("Remo", func() {
 				response := &http.Response{
 					StatusCode: 200,
 					Body:       ioutil.NopCloser(bytes.NewBufferString(sampleJson)),
+					Header:     make(http.Header, 0),
 				}
+				response.Header.Set("X-Rate-Limit-Limit", "30")
+				response.Header.Set("X-Rate-Limit-Remaining", "29")
+				response.Header.Set("X-Rate-Limit-Reset", "1532778912")
 
 				authClient.EXPECT().Get(gomock.Any()).Return(response, nil).Times(1)
 
@@ -109,7 +113,12 @@ var _ = Describe("Remo", func() {
 				secondResponse, err := rc.GetDevices()
 				Expect(err).Should(BeNil())
 
-				Expect(firstResponse).To(Equal(secondResponse))
+				Expect(firstResponse.Meta).To(Equal(secondResponse.Meta))
+				Expect(firstResponse.StatusCode).To(Equal(secondResponse.StatusCode))
+				Expect(firstResponse.Devices).To(Equal(secondResponse.Devices))
+
+				Expect(firstResponse.IsCache).To(BeFalse())
+				Expect(secondResponse.IsCache).To(BeTrue())
 			})
 
 			It("should fetch new data if the cache is invalidated", func() {
@@ -158,7 +167,7 @@ var _ = Describe("Remo", func() {
 				Expect(response).Should(BeNil())
 				Expect(err).Should(Equal(expectedError))
 			})
-			It("should return an error if the response status code isn't 200", func() {
+			It("should return stats even though the response status code isn't 200", func() {
 				authClient := mocks.NewMockAuthHttpDoer(mockCtrl)
 
 				response := &http.Response{
@@ -173,8 +182,8 @@ var _ = Describe("Remo", func() {
 				rc, _ := NewRemoClient(c, authClient)
 
 				result, err := rc.GetDevices()
-				Expect(result).Should(BeNil())
-				Expect(err).NotTo(BeNil())
+				Expect(err).Should(BeNil())
+				Expect(result.StatusCode).Should(Equal(response.StatusCode))
 
 			})
 		})
