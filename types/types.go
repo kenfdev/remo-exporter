@@ -27,3 +27,17 @@ type Device struct {
 	Users             []*User `json:"users"`
 	NewestEvents      *Event  `json:"newest_events"`
 }
+
+type Meta struct {
+	RateLimitLimit     float64
+	RateLimitReset     float64
+	RateLimitRemaining float64
+}
+
+// GetDevicesResult is the result of invoking the Remo API
+type GetDevicesResult struct {
+	StatusCode int
+	Meta       *Meta
+	Devices    []*Device
+	IsCache    bool
+}

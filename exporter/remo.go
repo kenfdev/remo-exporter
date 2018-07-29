@@ -2,8 +2,9 @@ package exporter
 
 import (
 	"encoding/json"
-	"errors"
 	"io/ioutil"
+	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/kenfdev/remo-exporter/config"
@@ -18,11 +19,13 @@ const (
 
 // RemoGatherer gathers stats from the remo api
 type RemoGatherer interface {
-	GetDevices() ([]*types.Device, error)
+	GetDevices() (*types.GetDevicesResult, error)
 }
 
 type Metrics struct {
-	Devices []*types.Device
+	StatusCode int
+	Meta       *types.Meta
+	Devices    []*types.Device
 }
 
 // RemoClient is a http client who requests resources from the Remo API
@@ -46,13 +49,48 @@ func NewRemoClient(config *config.Config, authClient authHttp.AuthHttpDoer) (*Re
 	}, nil
 }
 
+func getMetaStats(header http.Header) *types.Meta {
+	limitStr := header.Get("X-Rate-Limit-Limit")
+	limit, err := strconv.ParseFloat(limitStr, 64)
+	if err != nil {
+		log.Errorf("Error parsing X-Rate-Limit-Limit: %s", err.Error())
+		limit = 0
+	}
+
+	remainingStr := header.Get("X-Rate-Limit-Remaining")
+	remaining, err := strconv.ParseFloat(remainingStr, 64)
+	if err != nil {
+		log.Errorf("Error parsing X-Rate-Limit-Remaining: %s", err.Error())
+		remaining = 0
+	}
+
+	resetStr := header.Get("X-Rate-Limit-Reset")
+	reset, err := strconv.ParseFloat(resetStr, 64)
+	if err != nil {
+		log.Errorf("Error parsing X-Rate-Limit-Reset: %s", err.Error())
+		reset = 0
+	}
+
+	return &types.Meta{
+		RateLimitLimit:     limit,
+		RateLimitRemaining: remaining,
+		RateLimitReset:     reset,
+	}
+}
+
 // GetDevices will get the devices from the Remo API
-func (c *RemoClient) GetDevices() ([]*types.Device, error) {
+func (c *RemoClient) GetDevices() (*types.GetDevicesResult, error) {
 	now := int(time.Now().Unix())
 
 	if now < c.cacheExpirationTimestamp {
 		log.Infof("Returning cache. Cache valid for %d seconds", c.cacheExpirationTimestamp-now)
-		return c.cachedMetrics.Devices, nil
+		result := &types.GetDevicesResult{
+			StatusCode: c.cachedMetrics.StatusCode,
+			Meta:       c.cachedMetrics.Meta,
+			Devices:    c.cachedMetrics.Devices,
+			IsCache:    true,
+		}
+		return result, nil
 	}
 
 	url := c.baseURL + "/1/devices"
@@ -63,19 +101,30 @@ func (c *RemoClient) GetDevices() ([]*types.Device, error) {
 
 	defer resp.Body.Close()
 
+	data := []*types.Device{}
 	if resp.StatusCode == 200 {
 		bodyBytes, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			return nil, err
 		}
-		var data []*types.Device
 		json.Unmarshal(bodyBytes, &data)
 
-		c.cachedMetrics.Devices = data
+		// only update invalidation time on successful requests
 		c.cacheExpirationTimestamp = now + c.cacheInvalidationSeconds
 		log.Infof("Fetched data from the remote API. Caching until %d", c.cacheExpirationTimestamp)
-		return data, nil
 	}
 
-	return nil, errors.New("Request failed")
+	meta := getMetaStats(resp.Header)
+	result := &types.GetDevicesResult{
+		StatusCode: resp.StatusCode,
+		Meta:       meta,
+		Devices:    data,
+		IsCache:    false,
+	}
+
+	c.cachedMetrics.StatusCode = result.StatusCode
+	c.cachedMetrics.Meta = result.Meta
+	c.cachedMetrics.Devices = result.Devices
+
+	return result, nil
 }

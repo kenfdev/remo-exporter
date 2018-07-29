@@ -1,6 +1,8 @@
 package exporter_test
 
 import (
+	"strconv"
+
 	"github.com/golang/mock/gomock"
 	"github.com/kenfdev/remo-exporter/config"
 	"github.com/kenfdev/remo-exporter/types"
@@ -36,6 +38,16 @@ func readGauge(g prometheus.Metric) metricResult {
 	}
 }
 
+func readCounter(g prometheus.Counter) metricResult {
+	m := &dto.Metric{}
+	g.Write(m)
+
+	return metricResult{
+		value:  m.GetCounter().GetValue(),
+		labels: labels2Map(m.GetLabel()),
+	}
+}
+
 var _ = Describe("Exporter", func() {
 	var (
 		mockCtrl *gomock.Controller
@@ -63,6 +75,14 @@ var _ = Describe("Exporter", func() {
 			Expect(d.String()).To(Equal(`Desc{fqName: "remo_humidity", help: "The humidity of the remo device", constLabels: {}, variableLabels: [name id]}`))
 			d = (<-ch)
 			Expect(d.String()).To(Equal(`Desc{fqName: "remo_illumination", help: "The illumination of the remo device", constLabels: {}, variableLabels: [name id]}`))
+			d = (<-ch)
+			Expect(d.String()).To(Equal(`Desc{fqName: "remo_x_rate_limit_limit", help: "The rate limit for the remo API", constLabels: {}, variableLabels: []}`))
+			d = (<-ch)
+			Expect(d.String()).To(Equal(`Desc{fqName: "remo_x_rate_limit_reset", help: "The time in which the rate limit for the remo API will be reset", constLabels: {}, variableLabels: []}`))
+			d = (<-ch)
+			Expect(d.String()).To(Equal(`Desc{fqName: "remo_x_rate_limit_remaining", help: "The remaining number of request for the remo API", constLabels: {}, variableLabels: []}`))
+			d = (<-ch)
+			Expect(d.String()).To(Equal(`Desc{fqName: "remo_http_requests_total", help: "The total number of requests labeled by response code", constLabels: {}, variableLabels: [code]}`))
 		})
 	})
 
@@ -85,16 +105,25 @@ var _ = Describe("Exporter", func() {
 					},
 				},
 			}
-			devices := []*types.Device{
-				device,
+			result := &types.GetDevicesResult{
+				StatusCode: 200,
+				Devices:    []*types.Device{device},
+				Meta: &types.Meta{
+					RateLimitLimit:     30.0,
+					RateLimitRemaining: 29.0,
+					RateLimitReset:     1532778912,
+				},
+				IsCache: false,
 			}
-			remoClient.EXPECT().GetDevices().Return(devices, nil)
+			remoClient.EXPECT().GetDevices().Return(result, nil)
 
 			c, _ := config.NewConfig()
 			e, err := NewExporter(c, remoClient)
 			Expect(err).Should(BeNil())
 
 			ch := make(chan prometheus.Metric)
+			defer close(ch)
+
 			go e.Collect(ch)
 
 			m := (<-ch).(prometheus.Metric)
@@ -114,6 +143,20 @@ var _ = Describe("Exporter", func() {
 			Expect(m2.value).To(Equal(device.NewestEvents.Illumination.Value))
 			Expect(m2.labels["name"]).To(Equal(device.Name))
 			Expect(m2.labels["id"]).To(Equal(device.ID))
+
+			m = (<-ch).(prometheus.Metric)
+			m2 = readGauge(m)
+			Expect(m2.value).To(Equal(result.Meta.RateLimitLimit))
+			m = (<-ch).(prometheus.Metric)
+			m2 = readGauge(m)
+			Expect(m2.value).To(Equal(result.Meta.RateLimitRemaining))
+			m = (<-ch).(prometheus.Metric)
+			m2 = readGauge(m)
+			Expect(m2.value).To(Equal(result.Meta.RateLimitReset))
+
+			counter := (<-ch).(prometheus.Counter)
+			m2 = readCounter(counter)
+			Expect(m2.labels["code"]).To(Equal(strconv.Itoa(result.StatusCode)))
 		})
 	})
 })
