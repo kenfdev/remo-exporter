@@ -1,5 +1,7 @@
 # Prometheus Nature Remo Exporter
 
+[![codecov](https://codecov.io/gh/kenfdev/remo-exporter/branch/master/graph/badge.svg)](https://codecov.io/gh/kenfdev/remo-exporter)
+
 Exposes Nature Remo devices metrics to Prometheus.
 
 ## Configuration
@@ -46,3 +48,13 @@ REMO_OAUTH_TOKEN=<YOUR_OAUTH_TOKEN> docker-compose up
 The following is what it would look like with integration with Grafana:
 
 ![Grafana](assets/grafana.png)
+
+## Development
+
+### Creating mocks
+
+This project uses mockgen to create mocks. The following is an example of creating mocks.
+
+```
+mockgen -source ./config/reader.go -destination ./mocks/reader.go -package mocks
+```
