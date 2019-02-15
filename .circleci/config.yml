@@ -22,6 +22,5 @@ jobs:
       - checkout
 
       # specify any bash command here prefixed with `run: `
-      - run: go get -v -t -d ./...
       - run: go test $(go list ./... | grep -v integration | grep -v /vendor/ | grep -v /template/)  -race -coverprofile=coverage.txt -covermode=atomic
       - run: bash <(curl -s https://codecov.io/bash)

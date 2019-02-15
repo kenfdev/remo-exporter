@@ -18,10 +18,6 @@ coverage.txt
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
-### Go Patch ###
-/vendor/
-/Godeps/
-
 ### VisualStudioCode ###
 .vscode/*
 !.vscode/settings.json
