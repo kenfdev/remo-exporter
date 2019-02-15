@@ -1,6 +1,6 @@
 # Prometheus Nature Remo Exporter
 
-[![codecov](https://codecov.io/gh/kenfdev/remo-exporter/branch/master/graph/badge.svg)](https://codecov.io/gh/kenfdev/remo-exporter)
+[![CircleCI](https://circleci.com/gh/kenfdev/remo-exporter.svg?style=svg)](https://circleci.com/gh/kenfdev/remo-exporter) [![codecov](https://codecov.io/gh/kenfdev/remo-exporter/branch/master/graph/badge.svg)](https://codecov.io/gh/kenfdev/remo-exporter)
 
 Exposes Nature Remo devices metrics to Prometheus.
 
