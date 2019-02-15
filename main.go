@@ -14,7 +14,8 @@ import (
 func main() {
 
 	log.Info("Starting Nature Remo Exporter")
-	c, err := config.NewConfig()
+	r := config.NewFileReader()
+	c, err := config.NewConfig(r)
 	if err != nil {
 		log.Errorf("Failed to create config: %v", err)
 		os.Exit(1)

@@ -50,10 +50,12 @@ func readCounter(g prometheus.Counter) metricResult {
 
 var _ = Describe("Exporter", func() {
 	var (
-		mockCtrl *gomock.Controller
+		mockCtrl   *gomock.Controller
+		mockReader *mocks.MockReader
 	)
 	BeforeEach(func() {
 		mockCtrl = gomock.NewController(GinkgoT())
+		mockReader = mocks.NewMockReader(mockCtrl)
 	})
 	AfterEach(func() {
 		mockCtrl.Finish()
@@ -62,7 +64,7 @@ var _ = Describe("Exporter", func() {
 		It("should describe the prometheus metrics", func() {
 			remoClient := mocks.NewMockRemoGatherer(mockCtrl)
 
-			c, _ := config.NewConfig()
+			c, _ := config.NewConfig(mockReader)
 			e, err := NewExporter(c, remoClient)
 			Expect(err).Should(BeNil())
 
@@ -117,7 +119,7 @@ var _ = Describe("Exporter", func() {
 			}
 			remoClient.EXPECT().GetDevices().Return(result, nil)
 
-			c, _ := config.NewConfig()
+			c, _ := config.NewConfig(mockReader)
 			e, err := NewExporter(c, remoClient)
 			Expect(err).Should(BeNil())
 
