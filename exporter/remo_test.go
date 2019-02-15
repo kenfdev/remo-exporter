@@ -18,7 +18,8 @@ import (
 var _ = Describe("Remo", func() {
 	Describe("GetDevices", func() {
 		var (
-			mockCtrl *gomock.Controller
+			mockCtrl   *gomock.Controller
+			mockReader config.Reader
 		)
 		const (
 			sampleJson = `
@@ -58,6 +59,7 @@ var _ = Describe("Remo", func() {
 		)
 		BeforeEach(func() {
 			mockCtrl = gomock.NewController(GinkgoT())
+			mockReader = mocks.NewMockReader(mockCtrl)
 		})
 		AfterEach(func() {
 			mockCtrl.Finish()
@@ -74,7 +76,7 @@ var _ = Describe("Remo", func() {
 
 				authClient.EXPECT().Get(gomock.Any()).Return(response, nil)
 
-				c, _ := config.NewConfig()
+				c, _ := config.NewConfig(mockReader)
 				rc, _ := NewRemoClient(c, authClient)
 
 				result, err := rc.GetDevices()
@@ -104,7 +106,7 @@ var _ = Describe("Remo", func() {
 
 				authClient.EXPECT().Get(gomock.Any()).Return(response, nil).Times(1)
 
-				c, _ := config.NewConfig()
+				c, _ := config.NewConfig(mockReader)
 				rc, _ := NewRemoClient(c, authClient)
 
 				firstResponse, err := rc.GetDevices()
@@ -138,7 +140,7 @@ var _ = Describe("Remo", func() {
 					authClient.EXPECT().Get(gomock.Any()).Return(response2, nil).Times(1),
 				)
 
-				c, _ := config.NewConfig()
+				c, _ := config.NewConfig(mockReader)
 				c.CacheInvalidationSeconds = 0 // invalidate the cache immediately
 
 				rc, _ := NewRemoClient(c, authClient)
@@ -159,7 +161,7 @@ var _ = Describe("Remo", func() {
 				expectedError := errors.New("Invalid Request")
 				authClient.EXPECT().Get(gomock.Any()).Return(nil, expectedError).Times(1)
 
-				c, _ := config.NewConfig()
+				c, _ := config.NewConfig(mockReader)
 
 				rc, _ := NewRemoClient(c, authClient)
 
@@ -177,7 +179,7 @@ var _ = Describe("Remo", func() {
 
 				authClient.EXPECT().Get(gomock.Any()).Return(response, nil).Times(1)
 
-				c, _ := config.NewConfig()
+				c, _ := config.NewConfig(mockReader)
 
 				rc, _ := NewRemoClient(c, authClient)
 

@@ -1,24 +1,103 @@
 package config_test
 
 import (
+	"errors"
 	"os"
 	"strconv"
+
+	"github.com/golang/mock/gomock"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
 	. "github.com/kenfdev/remo-exporter/config"
+	"github.com/kenfdev/remo-exporter/mocks"
 )
 
 var _ = Describe("Config", func() {
 
 	Describe("NewConfig", func() {
-		Context("OAUTH_TOKEN not set", func() {
+		var (
+			mockCtrl   *gomock.Controller
+			mockReader *mocks.MockReader
+		)
+		BeforeEach(func() {
+			mockCtrl = gomock.NewController(GinkgoT())
+			mockReader = mocks.NewMockReader(mockCtrl)
+		})
+		AfterEach(func() {
+			mockCtrl.Finish()
+		})
+		Context("OAUTH_TOKEN and OAUTH_TOKEN_FILE not set", func() {
 			It("should fail with error", func() {
-				c, err := NewConfig()
+				c, err := NewConfig(mockReader)
 
 				Expect(c).To(BeNil())
 				Expect(err).NotTo(BeNil())
+			})
+		})
+		Context("OAUTH_TOKEN_FILE set", func() {
+			const (
+				oAuthTokenFile string = "path/to/token"
+			)
+
+			var (
+				orgOAuthTokenFile string
+			)
+			BeforeEach(func() {
+				orgOAuthTokenFile = os.Getenv("OAUTH_TOKEN_FILE")
+
+				os.Setenv("OAUTH_TOKEN_FILE", oAuthTokenFile)
+			})
+			AfterEach(func() {
+				os.Setenv("OAUTH_TOKEN_FILE", orgOAuthTokenFile)
+			})
+			Context("loading file fails", func() {
+				It("should fail error", func() {
+					// Arrange
+					expectedError := errors.New("File not found")
+
+					// Expect
+					mockReader.EXPECT().ReadFile(oAuthTokenFile).Return(nil, expectedError)
+
+					// Act
+					c, err := NewConfig(mockReader)
+
+					// Assert
+					Expect(c).Should(BeNil())
+					Expect(err.Error()).Should(ContainSubstring(expectedError.Error()))
+				})
+			})
+			Context("file exists and has token", func() {
+				It("should set the token", func() {
+					// Arrange
+					expectedToken := "some-token"
+
+					// Expect
+					mockReader.EXPECT().ReadFile(oAuthTokenFile).Return([]byte(expectedToken), nil)
+
+					// Act
+					c, err := NewConfig(mockReader)
+
+					// Assert
+					Expect(err).Should(BeNil())
+					Expect(c.OAuthToken).Should(Equal(expectedToken))
+				})
+			})
+			Context("file exists but token empty", func() {
+				It("should fail with error", func() {
+					// Arrange
+
+					// Expect
+					mockReader.EXPECT().ReadFile(oAuthTokenFile).Return([]byte(""), nil)
+
+					// Act
+					c, err := NewConfig(mockReader)
+
+					// Assert
+					Expect(c).Should(BeNil())
+					Expect(err).NotTo(BeNil())
+				})
 			})
 		})
 		Context("No environment variables except OAUTH_TOKEN set", func() {
@@ -38,7 +117,7 @@ var _ = Describe("Config", func() {
 				os.Setenv("OAUTH_TOKEN", orgOAuthToken)
 			})
 			It("should create a config with default values", func() {
-				c, err := NewConfig()
+				c, err := NewConfig(mockReader)
 
 				Expect(err).Should(BeNil())
 				Expect(c.MetricsPath).To(Equal("/metrics"))
@@ -86,7 +165,7 @@ var _ = Describe("Config", func() {
 			})
 
 			It("should override the default values of the config", func() {
-				c, err := NewConfig()
+				c, err := NewConfig(mockReader)
 
 				Expect(err).Should(BeNil())
 				Expect(c.MetricsPath).To(Equal(metricsPath))

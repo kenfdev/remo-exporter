@@ -2,8 +2,12 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"strconv"
+	"strings"
+
+	"github.com/kenfdev/remo-exporter/log"
 )
 
 // Config struct holds all of the runtime configuration for the application
@@ -23,11 +27,32 @@ func getEnv(key string, defaultValue string) string {
 	return val
 }
 
+func getOAuthToken(r Reader) (string, error) {
+	token := ""
+	tokenPath := getEnv("OAUTH_TOKEN_FILE", "")
+	if tokenPath == "" {
+		log.Info("No oauth token file found. Falling back to environment variable")
+		token = getEnv("OAUTH_TOKEN", "")
+	} else {
+		key, err := r.ReadFile(tokenPath)
+		if err != nil {
+			return "", fmt.Errorf("Unable to load oauth token file at: %s. %s", tokenPath, err.Error())
+		}
+		token = strings.TrimSpace(string(key))
+	}
+
+	if token == "" {
+		return "", errors.New("OAUTH_TOKEN not set. Be sure to set the Remo oauth token to a secret or environment variable")
+	}
+
+	return token, nil
+}
+
 // NewConfig creates a new config
-func NewConfig() (*Config, error) {
-	token := os.Getenv("OAUTH_TOKEN")
-	if len(token) == 0 {
-		return nil, errors.New("OAUTH_TOKEN not set. Be sure to set the Remo oauth token to the OAUTH_TOKEN environment variable")
+func NewConfig(r Reader) (*Config, error) {
+	token, err := getOAuthToken(r)
+	if err != nil {
+		return nil, err
 	}
 
 	metricsPath := getEnv("METRICS_PATH", "/metrics")
