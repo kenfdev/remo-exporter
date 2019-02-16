@@ -1,4 +1,4 @@
-version: '3'
+version: '3.3'
 
 services:
   remo-exporter:
@@ -6,10 +6,15 @@ services:
       - 9352:9352
     image: kenfdev/remo-exporter:latest
     environment:
-      OAUTH_TOKEN_FILE: "/run/secrets/api-keys"
+      OAUTH_TOKEN_FILE: '/run/secrets/api-keys'
+      # Not recommended but token can be set by env vars.
       # OAUTH_TOKEN: ${REMO_OAUTH_TOKEN}
-    volumes:
-      - ./.env:/run/secrets/api-keys
+    # comment out the following if you're using plain docker-compose
+    secrets:
+      - api-keys
+    # Below is for testing secrets with docker-compose
+    # volumes:
+    #   - ./api-keys:/run/secrets/api-keys
   prom:
     image: quay.io/prometheus/prometheus:v2.0.0
     volumes:
@@ -25,3 +30,8 @@ services:
       - '3000:3000'
     depends_on:
       - prom
+
+# comment out the following if you're using plain docker-compose
+secrets:
+  api-keys:
+    external: true

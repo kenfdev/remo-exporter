@@ -1,0 +1,30 @@
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: remo-exporter
+  namespace: remo
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: remo-exporter
+    spec:
+      containers:
+        - name: remo-exporter
+          image: kenfdev/remo-exporter:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 9352
+              protocol: TCP
+          env:
+            - name: OAUTH_TOKEN_FILE
+              value: '/etc/secrets/api-keys'
+          volumeMounts:
+            - name: api-keys-volume
+              readOnly: true
+              mountPath: '/etc/secrets'
+      volumes:
+        - name: api-keys-volume
+          secret:
+            secretName: api-keys
