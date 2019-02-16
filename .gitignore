@@ -1,6 +1,7 @@
 *.coverprofile
 coverage.txt
 .env
+api-keys
 
 # Created by https://www.gitignore.io/api/go,visualstudiocode
 
