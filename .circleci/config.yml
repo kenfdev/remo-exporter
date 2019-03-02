@@ -1,26 +1,92 @@
-# Golang CircleCI 2.0 configuration file
-#
-# Check https://circleci.com/docs/2.0/language-go/ for more details
+aliases:
+  # Workflow filters
+  - &filter-only-release
+    branches:
+      ignore: /.*/
+    tags:
+      only: /^v[0-9]+(\.[0-9]+){2}(-.+|[^-.]*)$/
+  - &filter-only-master
+    branches:
+      only: master
+
 version: 2
+
 jobs:
   build:
     docker:
-      # specify the version
       - image: circleci/golang:1.11.5
-      
-      # Specify service dependencies here if necessary
-      # CircleCI maintains a library of pre-built images
-      # documented at https://circleci.com/docs/2.0/circleci-images/
-      # - image: circleci/postgres:9.4
-
-    #### TEMPLATE_NOTE: go expects specific checkout path representing url
-    #### expecting it in the form of
-    ####   /go/src/github.com/circleci/go-tool
-    ####   /go/src/bitbucket.org/circleci/go-tool
     working_directory: /go/src/github.com/kenfdev/remo-exporter
     steps:
       - checkout
+      - run:
+          name: build and package remo-exporter
+          command: './scripts/build-bin.sh'
+      - persist_to_workspace:
+          root: .
+          paths:
+            - dist/remo*
 
-      # specify any bash command here prefixed with `run: `
-      - run: go test $(go list ./... | grep -v integration | grep -v /vendor/ | grep -v /template/)  -race -coverprofile=coverage.txt -covermode=atomic
-      - run: bash <(curl -s https://codecov.io/bash)
+  test:
+    docker:
+      - image: circleci/golang:1.11.5
+    working_directory: /go/src/github.com/kenfdev/remo-exporter
+    steps:
+      - checkout
+      - run:
+          name: build backend and run go tests with coverage
+          command: './scripts/run-test-with-coverage.sh'
+      - run:
+          name: report coverage to codecov
+          command: bash <(curl -s https://codecov.io/bash)
+
+  remo-docker-master:
+    machine:
+      image: circleci/classic:201808-01
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+      - run: docker info
+      - run: docker run --privileged linuxkit/binfmt:v0.6
+      - run: cp dist/remo* packaging/docker
+      - run: cd packaging/docker && ./build-image.sh "master-${CIRCLE_SHA1}"
+      - run: cd packaging/docker && ./push-image.sh "master-${CIRCLE_SHA1}"
+
+  remo-docker-release:
+    machine:
+      image: circleci/classic:201808-01
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+      - run: docker info
+      - run: docker run --privileged linuxkit/binfmt:v0.6
+      - run: cp dist/remo* packaging/docker
+      - run: cd packaging/docker && ./build-image.sh "${CIRCLE_TAG}"
+      - run: cd packaging/docker && ./push-image.sh "${CIRCLE_TAG}"
+
+workflows:
+  version: 2
+  build-master:
+    jobs:
+      - build:
+          filters: *filter-only-master
+      - test:
+          filters: *filter-only-master
+      - remo-docker-master:
+          requires:
+            - build
+            - test
+          filters: *filter-only-master
+
+  release:
+    jobs:
+      - build:
+          filters: *filter-only-release
+      - test:
+          filters: *filter-only-release
+      - remo-docker-release:
+          requires:
+            - build
+            - test
+          filters: *filter-only-release
