@@ -104,7 +104,14 @@ kubectl -n remo create secret generic api-keys --from-file=api-keys
 #### Deploy
 
 ```bash
+# deploy common resources
 kubectl apply -f ./k8s/yaml
+
+# if arch is amd64
+kubectl apply -f ./k8s/yaml-amd64
+
+# if arch if armhf
+kubectl apply -f ./k8s/yaml-armhf
 ```
 
 #### Access the metrics
