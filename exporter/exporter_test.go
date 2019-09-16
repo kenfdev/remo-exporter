@@ -2,6 +2,7 @@ package exporter_test
 
 import (
 	"strconv"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/kenfdev/remo-exporter/config"
@@ -78,6 +79,8 @@ var _ = Describe("Exporter", func() {
 			d = (<-ch)
 			Expect(d.String()).To(Equal(`Desc{fqName: "remo_illumination", help: "The illumination of the remo device", constLabels: {}, variableLabels: [name id]}`))
 			d = (<-ch)
+			Expect(d.String()).To(Equal(`Desc{fqName: "remo_motion", help: "The motion of the remo device", constLabels: {}, variableLabels: [name id]}`))
+			d = (<-ch)
 			Expect(d.String()).To(Equal(`Desc{fqName: "remo_x_rate_limit_limit", help: "The rate limit for the remo API", constLabels: {}, variableLabels: []}`))
 			d = (<-ch)
 			Expect(d.String()).To(Equal(`Desc{fqName: "remo_x_rate_limit_reset", help: "The time in which the rate limit for the remo API will be reset", constLabels: {}, variableLabels: []}`))
@@ -104,6 +107,10 @@ var _ = Describe("Exporter", func() {
 					},
 					Illumination: &types.SensorValue{
 						Value: 40.0,
+					},
+					Motion: &types.SensorValue{
+						CreatedAt: time.Now(),
+						Value:     1.0,
 					},
 				},
 			}
@@ -143,6 +150,12 @@ var _ = Describe("Exporter", func() {
 			m = (<-ch).(prometheus.Metric)
 			m2 = readGauge(m)
 			Expect(m2.value).To(Equal(device.NewestEvents.Illumination.Value))
+			Expect(m2.labels["name"]).To(Equal(device.Name))
+			Expect(m2.labels["id"]).To(Equal(device.ID))
+
+			m = (<-ch).(prometheus.Metric)
+			m2 = readGauge(m)
+			Expect(m2.value).To(Equal(float64(device.NewestEvents.Motion.CreatedAt.Unix())))
 			Expect(m2.labels["name"]).To(Equal(device.Name))
 			Expect(m2.labels["id"]).To(Equal(device.ID))
 
