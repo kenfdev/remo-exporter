@@ -36,6 +36,9 @@ remo_illumination{id="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",name="Living Remo"} 
 # HELP remo_temperature The temperature of the remo device
 # TYPE remo_temperature gauge
 remo_temperature{id="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",name="Living Remo"} 28.2
+# HELP remo_motion The motion of the remo device
+# TYPE remo_motion gauge
+remo_motion{id="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",name="Living Remo"} 1.568608471e+09
 ```
 
 ## Usage

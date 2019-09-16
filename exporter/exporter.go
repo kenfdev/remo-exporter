@@ -34,6 +34,12 @@ var (
 		[]string{"name", "id"}, nil,
 	)
 
+	motion = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "motion"),
+		"The motion of the remo device",
+		[]string{"name", "id"}, nil,
+	)
+
 	rateLimitLimit = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, "", "x_rate_limit_limit"),
 		"The rate limit for the remo API",
@@ -80,6 +86,7 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- temperature
 	ch <- humidity
 	ch <- illumination
+	ch <- motion
 	ch <- rateLimitLimit
 	ch <- rateLimitReset
 	ch <- rateLimitRemaining
@@ -107,6 +114,7 @@ func (e *Exporter) processMetrics(devicesResult *types.GetDevicesResult, ch chan
 		ch <- prometheus.MustNewConstMetric(temperature, prometheus.GaugeValue, d.NewestEvents.Temperature.Value, d.Name, d.ID)
 		ch <- prometheus.MustNewConstMetric(humidity, prometheus.GaugeValue, d.NewestEvents.Humidity.Value, d.Name, d.ID)
 		ch <- prometheus.MustNewConstMetric(illumination, prometheus.GaugeValue, d.NewestEvents.Illumination.Value, d.Name, d.ID)
+		ch <- prometheus.MustNewConstMetric(motion, prometheus.GaugeValue, float64(d.NewestEvents.Motion.CreatedAt.Unix()), d.Name, d.ID)
 	}
 
 	if devicesResult.Meta != nil {

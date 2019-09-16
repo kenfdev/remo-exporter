@@ -1,5 +1,7 @@
 package types
 
+import "time"
+
 type User struct {
 	ID        string `json:"id"`
 	Nickname  string `json:"nickname"`
@@ -7,13 +9,14 @@ type User struct {
 }
 
 type SensorValue struct {
-	Value     float64 `json:"val"`
-	CreatedAt string  `json:"created_at"`
+	Value     float64   `json:"val"`
+	CreatedAt time.Time `json:"created_at"`
 }
 type Event struct {
 	Temperature  *SensorValue `json:"te"`
 	Humidity     *SensorValue `json:"hu"`
 	Illumination *SensorValue `json:"il"`
+	Motion       *SensorValue `json:"mo"`
 }
 
 type Device struct {
