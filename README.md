@@ -76,7 +76,7 @@ docker secret create api-keys token-file
 
 #### Access the metrics
 
-The following is an example url for the NodePort(30352):
+The following is an example url for the docker published port(9352):
 
 http://localhost:9352/metrics
 

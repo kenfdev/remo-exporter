@@ -11,6 +11,6 @@ spec:
     - port: 9352
       protocol: TCP
       targetPort: 9352
-      nodePort: 30452
+      nodePort: 30352
   selector:
     app: remo-exporter
