@@ -76,9 +76,9 @@ docker secret create api-keys token-file
 
 #### Access the metrics
 
-The following is an example url for the docker published port(9352):
+The following is an example url for the NodePort(30452):
 
-http://localhost:9352/metrics
+http://localhost:30452/metrics
 
 ### Kubernetes
 
@@ -119,9 +119,9 @@ kubectl apply -f ./k8s/yaml-armhf
 
 #### Access the metrics
 
-The following is an example url for the NodePort(30352):
+The following is an example url for the NodePort(30452):
 
-http://localhost:30352/metrics
+http://localhost:30452/metrics
 
 ## Grafana
 
