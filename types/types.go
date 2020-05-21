@@ -1,6 +1,9 @@
 package types
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 type User struct {
 	ID        string `json:"id"`
@@ -31,6 +34,14 @@ type Device struct {
 	NewestEvents      *Event  `json:"newest_events"`
 }
 
+func (d Device) IsRemo() bool {
+	return strings.HasPrefix(d.FirmwareVersion, "Remo/")
+}
+
+func (d Device) IsRemoElite() bool {
+	return strings.HasPrefix(d.FirmwareVersion, "Remo-E-lite/")
+}
+
 type Meta struct {
 	RateLimitLimit     float64
 	RateLimitReset     float64
@@ -43,4 +54,39 @@ type GetDevicesResult struct {
 	Meta       *Meta
 	Devices    []*Device
 	IsCache    bool
+}
+
+type GetAppliancesResult struct {
+	StatusCode int
+	Meta       *Meta
+	Appliances []*Appliance
+	IsCache    bool
+}
+
+type Appliance struct {
+	ID         string      `json:"id"`
+	Device     *Device     `json:"device"`
+	Model      *Model      `json:"model"`
+	Type       string      `json:"type"`
+	Nickname   string      `json:"nickname"`
+	Image      string      `json:"image"`
+	SmartMeter *SmartMeter `json:"smart_meter"`
+}
+
+type Model struct {
+	ID           string `json:"id"`
+	Manufacturer string `json:"manufacturer"`
+	Name         string `json:"name"`
+	Image        string `json:"image"`
+}
+
+type SmartMeter struct {
+	EchonetliteProperties []*EchonetliteProperty `json:"echonetlite_properties"`
+}
+
+type EchonetliteProperty struct {
+	Name      string    `json:"name"`
+	Epc       int       `json:"epc"`
+	Val       string    `json:"val"`
+	UpdatedAt time.Time `json:"updated_at"`
 }

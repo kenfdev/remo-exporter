@@ -2,7 +2,7 @@
 
 [![CircleCI](https://circleci.com/gh/kenfdev/remo-exporter.svg?style=svg)](https://circleci.com/gh/kenfdev/remo-exporter) [![codecov](https://codecov.io/gh/kenfdev/remo-exporter/branch/master/graph/badge.svg)](https://codecov.io/gh/kenfdev/remo-exporter)
 
-Exposes Nature Remo devices metrics to Prometheus.
+Exposes Nature Remo and Nature Remo E lite devices metrics to Prometheus.
 
 ## Configuration
 
@@ -39,6 +39,17 @@ remo_temperature{id="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",name="Living Remo"} 2
 # HELP remo_motion The motion of the remo device
 # TYPE remo_motion gauge
 remo_motion{id="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",name="Living Remo"} 1.568608471e+09
+```
+
+If you have a Nature Remo E lite, you can also get the following metrics:
+
+```plain
+# HELP remo_cumulative_electric_energy_kilowatt The cumulative electric energy of the remo e lite
+# TYPE remo_cumulative_electric_energy_kilowatt counter
+remo_cumulative_electric_energy_kilowatt{id="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",name="Remo E lite"} 5094.8
+# HELP remo_measured_instantaneous_energy_watt The measured instantaneous energy of the remo e lite
+# TYPE remo_measured_instantaneous_energy_watt gauge
+remo_measured_instantaneous_energy_watt{id="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",name="Remo E lite"} 529
 ```
 
 ## Usage

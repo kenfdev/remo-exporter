@@ -191,4 +191,117 @@ var _ = Describe("Remo", func() {
 		})
 	})
 
+	Describe("GetAppliances", func() {
+		var (
+			mockCtrl   *gomock.Controller
+			mockReader config.Reader
+		)
+		const (
+			sampleJson = `
+[
+	{
+		"id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+		"device": {
+			"name": "Remo E lite",
+			"id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+			"created_at": "2020-05-13T02:23:18Z",
+			"updated_at": "2020-05-13T02:27:16Z",
+			"mac_address": "xx:xx:xx:xx:xx:xx",
+			"bt_mac_address": "xx:xx:xx:xx:xx:xx",
+			"serial_number": "XXXXXXXXXXXXXX",
+			"firmware_version": "Remo-E-lite/1.1.2",
+			"temperature_offset": 0,
+			"humidity_offset": 0
+		},
+		"model": {
+			"id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+			"manufacturer": "",
+			"name": "Smart Meter",
+			"image": "ico_smartmeter"
+		},
+		"type": "EL_SMART_METER",
+		"nickname": "スマートメーター",
+		"image": "ico_smartmeter",
+		"settings": null,
+		"aircon": null,
+		"signals": [],
+		"smart_meter": {
+			"echonetlite_properties": [
+				{
+					"name": "coefficient",
+					"epc": 211,
+					"val": "1",
+					"updated_at": "2020-05-20T10:42:21Z"
+				},
+				{
+					"name": "cumulative_electric_energy_effective_digits",
+					"epc": 215,
+					"val": "6",
+					"updated_at": "2020-05-20T10:42:21Z"
+				},
+				{
+					"name": "normal_direction_cumulative_electric_energy",
+					"epc": 224,
+					"val": "50851",
+					"updated_at": "2020-05-20T10:42:21Z"
+				},
+				{
+					"name": "cumulative_electric_energy_unit",
+					"epc": 225,
+					"val": "1",
+					"updated_at": "2020-05-20T10:42:21Z"
+				},
+				{
+					"name": "reverse_direction_cumulative_electric_energy",
+					"epc": 227,
+					"val": "11",
+					"updated_at": "2020-05-20T10:42:21Z"
+				},
+				{
+					"name": "measured_instantaneous",
+					"epc": 231,
+					"val": "568",
+					"updated_at": "2020-05-20T10:42:21Z"
+				}
+			]
+		}
+	}
+]
+`
+		)
+		BeforeEach(func() {
+			mockCtrl = gomock.NewController(GinkgoT())
+			mockReader = mocks.NewMockReader(mockCtrl)
+		})
+		AfterEach(func() {
+			mockCtrl.Finish()
+		})
+		Context("successful request", func() {
+			It("should return the appliances received in the response", func() {
+
+				authClient := mocks.NewMockAuthHttpDoer(mockCtrl)
+
+				response := &http.Response{
+					StatusCode: 200,
+					Body:       ioutil.NopCloser(bytes.NewBufferString(sampleJson)),
+				}
+
+				authClient.EXPECT().Get(gomock.Any()).Return(response, nil)
+
+				c, _ := config.NewConfig(mockReader)
+				rc, _ := NewRemoClient(c, authClient)
+
+				result, err := rc.GetAppliances()
+
+				Expect(err).Should(BeNil())
+				Expect(len(result.Appliances)).To(BeNumerically(">", 0))
+
+				app := result.Appliances[0]
+				Expect(app.Type).To(Equal("EL_SMART_METER"))
+				Expect(app.Device.Name).To(Equal("Remo E lite"))
+				Expect(app.SmartMeter.EchonetliteProperties[2].Epc).To(Equal(EpcNormalDirectionCumulativeElectricEnergy))
+				Expect(app.SmartMeter.EchonetliteProperties[2].Val).To(Equal("50851"))
+			})
+		})
+	})
 })
