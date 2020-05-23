@@ -1,10 +1,13 @@
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: remo-exporter
   namespace: remo
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: remo-exporter
   template:
     metadata:
       labels:
