@@ -1,7 +1,6 @@
 package types
 
 import (
-	"strings"
 	"time"
 )
 
@@ -32,14 +31,6 @@ type Device struct {
 	HumidityOffset    int     `json:"humidity_offset"`
 	Users             []*User `json:"users"`
 	NewestEvents      *Event  `json:"newest_events"`
-}
-
-func (d Device) IsRemo() bool {
-	return strings.HasPrefix(d.FirmwareVersion, "Remo/")
-}
-
-func (d Device) IsRemoElite() bool {
-	return strings.HasPrefix(d.FirmwareVersion, "Remo-E-lite/")
 }
 
 type Meta struct {

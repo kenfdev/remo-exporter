@@ -40,15 +40,39 @@ var (
 		[]string{"name", "id"}, nil,
 	)
 
-	cumulativeElectricEnergy = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, "", "cumulative_electric_energy_kilowatt"),
-		"The cumulative electric energy of the remo e lite",
+	normalElectricEnergy = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "normal_direction_cumulative_electric_energy"),
+		"The raw value for cumulative electric energy in normal direction",
+		[]string{"name", "id"}, nil,
+	)
+
+	reverseElectricEnergy = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "reverse_direction_cumulative_electric_energy"),
+		"The raw value for cumulative electric energy in reverse direction",
+		[]string{"name", "id"}, nil,
+	)
+
+	coefficient = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "coefficient"),
+		"The coefficient for cumulative electric energy",
+		[]string{"name", "id"}, nil,
+	)
+
+	electricEnergyUnit = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "cumulative_electric_energy_unit_kilowatt_hour"),
+		"The unit in kWh for cumulative electric energy",
+		[]string{"name", "id"}, nil,
+	)
+
+	electricEnergyDigits = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "cumulative_electric_energy_effective_digits"),
+		"The number of effective digits for cumulative electric energy",
 		[]string{"name", "id"}, nil,
 	)
 
 	measuredInstantaneousEnergy = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, "", "measured_instantaneous_energy_watt"),
-		"The measured instantaneous energy of the remo e lite",
+		"The measured instantaneous energy in W",
 		[]string{"name", "id"}, nil,
 	)
 
@@ -97,7 +121,11 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- humidity
 	ch <- illumination
 	ch <- motion
-	ch <- cumulativeElectricEnergy
+	ch <- normalElectricEnergy
+	ch <- reverseElectricEnergy
+	ch <- coefficient
+	ch <- electricEnergyUnit
+	ch <- electricEnergyDigits
 	ch <- measuredInstantaneousEnergy
 	ch <- rateLimitLimit
 	ch <- rateLimitReset
@@ -113,16 +141,10 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 
-	appliances := &types.GetAppliancesResult{}
-	for _, dev := range devices.Devices {
-		if dev.IsRemoElite() {
-			appliances, err = e.client.GetAppliances()
-			if err != nil {
-				log.Errorf("Fetching appliances stats failed: %v", err)
-				return
-			}
-			break
-		}
+	appliances, err := e.client.GetAppliances()
+	if err != nil {
+		log.Errorf("Fetching appliances stats failed: %v", err)
+		return
 	}
 
 	err = e.processMetrics(devices, appliances, ch)
@@ -135,13 +157,21 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 
 func (e *Exporter) processMetrics(devicesResult *types.GetDevicesResult, appliancesResult *types.GetAppliancesResult, ch chan<- prometheus.Metric) error {
 	for _, d := range devicesResult.Devices {
-		if !d.IsRemo() {
+		if d.NewestEvents == nil {
 			continue
 		}
-		ch <- prometheus.MustNewConstMetric(temperature, prometheus.GaugeValue, d.NewestEvents.Temperature.Value, d.Name, d.ID)
-		ch <- prometheus.MustNewConstMetric(humidity, prometheus.GaugeValue, d.NewestEvents.Humidity.Value, d.Name, d.ID)
-		ch <- prometheus.MustNewConstMetric(illumination, prometheus.GaugeValue, d.NewestEvents.Illumination.Value, d.Name, d.ID)
-		ch <- prometheus.MustNewConstMetric(motion, prometheus.GaugeValue, float64(d.NewestEvents.Motion.CreatedAt.Unix()), d.Name, d.ID)
+		if d.NewestEvents.Temperature != nil {
+			ch <- prometheus.MustNewConstMetric(temperature, prometheus.GaugeValue, d.NewestEvents.Temperature.Value, d.Name, d.ID)
+		}
+		if d.NewestEvents.Humidity != nil {
+			ch <- prometheus.MustNewConstMetric(humidity, prometheus.GaugeValue, d.NewestEvents.Humidity.Value, d.Name, d.ID)
+		}
+		if d.NewestEvents.Illumination != nil {
+			ch <- prometheus.MustNewConstMetric(illumination, prometheus.GaugeValue, d.NewestEvents.Illumination.Value, d.Name, d.ID)
+		}
+		if d.NewestEvents.Motion != nil {
+			ch <- prometheus.MustNewConstMetric(motion, prometheus.GaugeValue, float64(d.NewestEvents.Motion.CreatedAt.Unix()), d.Name, d.ID)
+		}
 	}
 
 	sms := getSmartMeters(appliancesResult.Appliances)
@@ -151,7 +181,11 @@ func (e *Exporter) processMetrics(devicesResult *types.GetDevicesResult, applian
 			log.Errorf("failed to get EnergyInfo: %w", err)
 			continue
 		}
-		ch <- prometheus.MustNewConstMetric(cumulativeElectricEnergy, prometheus.CounterValue, info.CumulativeElectricEnergy(), sm.Device.Name, sm.Device.ID)
+		ch <- prometheus.MustNewConstMetric(normalElectricEnergy, prometheus.CounterValue, float64(info.NormalEnergy), sm.Device.Name, sm.Device.ID)
+		ch <- prometheus.MustNewConstMetric(reverseElectricEnergy, prometheus.CounterValue, float64(info.ReverseEnergy), sm.Device.Name, sm.Device.ID)
+		ch <- prometheus.MustNewConstMetric(coefficient, prometheus.GaugeValue, float64(info.Coefficient), sm.Device.Name, sm.Device.ID)
+		ch <- prometheus.MustNewConstMetric(electricEnergyUnit, prometheus.GaugeValue, info.EnergyUnit, sm.Device.Name, sm.Device.ID)
+		ch <- prometheus.MustNewConstMetric(electricEnergyDigits, prometheus.GaugeValue, float64(info.EffectiveDigits), sm.Device.Name, sm.Device.ID)
 		ch <- prometheus.MustNewConstMetric(measuredInstantaneousEnergy, prometheus.GaugeValue, float64(info.MeasuredInstantaneous), sm.Device.Name, sm.Device.ID)
 	}
 

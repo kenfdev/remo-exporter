@@ -81,9 +81,17 @@ var _ = Describe("Exporter", func() {
 			d = (<-ch)
 			Expect(d.String()).To(Equal(`Desc{fqName: "remo_motion", help: "The motion of the remo device", constLabels: {}, variableLabels: [name id]}`))
 			d = (<-ch)
-			Expect(d.String()).To(Equal(`Desc{fqName: "remo_cumulative_electric_energy_kilowatt", help: "The cumulative electric energy of the remo e lite", constLabels: {}, variableLabels: [name id]}`))
+			Expect(d.String()).To(Equal(`Desc{fqName: "remo_normal_direction_cumulative_electric_energy", help: "The raw value for cumulative electric energy in normal direction", constLabels: {}, variableLabels: [name id]}`))
 			d = (<-ch)
-			Expect(d.String()).To(Equal(`Desc{fqName: "remo_measured_instantaneous_energy_watt", help: "The measured instantaneous energy of the remo e lite", constLabels: {}, variableLabels: [name id]}`))
+			Expect(d.String()).To(Equal(`Desc{fqName: "remo_reverse_direction_cumulative_electric_energy", help: "The raw value for cumulative electric energy in reverse direction", constLabels: {}, variableLabels: [name id]}`))
+			d = (<-ch)
+			Expect(d.String()).To(Equal(`Desc{fqName: "remo_coefficient", help: "The coefficient for cumulative electric energy", constLabels: {}, variableLabels: [name id]}`))
+			d = (<-ch)
+			Expect(d.String()).To(Equal(`Desc{fqName: "remo_cumulative_electric_energy_unit_kilowatt_hour", help: "The unit in kWh for cumulative electric energy", constLabels: {}, variableLabels: [name id]}`))
+			d = (<-ch)
+			Expect(d.String()).To(Equal(`Desc{fqName: "remo_cumulative_electric_energy_effective_digits", help: "The number of effective digits for cumulative electric energy", constLabels: {}, variableLabels: [name id]}`))
+			d = (<-ch)
+			Expect(d.String()).To(Equal(`Desc{fqName: "remo_measured_instantaneous_energy_watt", help: "The measured instantaneous energy in W", constLabels: {}, variableLabels: [name id]}`))
 			d = (<-ch)
 			Expect(d.String()).To(Equal(`Desc{fqName: "remo_x_rate_limit_limit", help: "The rate limit for the remo API", constLabels: {}, variableLabels: []}`))
 			d = (<-ch)
@@ -130,6 +138,7 @@ var _ = Describe("Exporter", func() {
 				IsCache: false,
 			}
 			remoClient.EXPECT().GetDevices().Return(result, nil)
+			remoClient.EXPECT().GetAppliances().Return(&types.GetAppliancesResult{}, nil)
 
 			c, _ := config.NewConfig(mockReader)
 			e, err := NewExporter(c, remoClient)
@@ -263,7 +272,31 @@ var _ = Describe("Exporter", func() {
 
 			m := (<-ch).(prometheus.Metric)
 			m2 := readCounter(m)
-			Expect(m2.value).To(BeNumerically("==", 5084))
+			Expect(m2.value).To(BeNumerically("==", 50851))
+			Expect(m2.labels["name"]).To(Equal(appliance.Device.Name))
+			Expect(m2.labels["id"]).To(Equal(appliance.Device.ID))
+
+			m = (<-ch).(prometheus.Metric)
+			m2 = readCounter(m)
+			Expect(m2.value).To(BeNumerically("==", 11))
+			Expect(m2.labels["name"]).To(Equal(appliance.Device.Name))
+			Expect(m2.labels["id"]).To(Equal(appliance.Device.ID))
+
+			m = (<-ch).(prometheus.Metric)
+			m2 = readGauge(m)
+			Expect(m2.value).To(BeNumerically("==", 1))
+			Expect(m2.labels["name"]).To(Equal(appliance.Device.Name))
+			Expect(m2.labels["id"]).To(Equal(appliance.Device.ID))
+
+			m = (<-ch).(prometheus.Metric)
+			m2 = readGauge(m)
+			Expect(m2.value).To(BeNumerically("==", 0.1))
+			Expect(m2.labels["name"]).To(Equal(appliance.Device.Name))
+			Expect(m2.labels["id"]).To(Equal(appliance.Device.ID))
+
+			m = (<-ch).(prometheus.Metric)
+			m2 = readGauge(m)
+			Expect(m2.value).To(BeNumerically("==", 6))
 			Expect(m2.labels["name"]).To(Equal(appliance.Device.Name))
 			Expect(m2.labels["id"]).To(Equal(appliance.Device.ID))
 

@@ -25,10 +25,6 @@ type EnergyInfo struct {
 	MeasuredInstantaneous int
 }
 
-func (i EnergyInfo) CumulativeElectricEnergy() float64 {
-	return float64((i.NormalEnergy-i.ReverseEnergy)*i.Coefficient) * i.EnergyUnit
-}
-
 func getSmartMeters(apps []*types.Appliance) []*types.Appliance {
 	smartMeters := make([]*types.Appliance, 0)
 	for _, app := range apps {
@@ -42,9 +38,6 @@ func getSmartMeters(apps []*types.Appliance) []*types.Appliance {
 func energyInfo(sm *types.Appliance) (*EnergyInfo, error) {
 	if sm.SmartMeter == nil {
 		return nil, fmt.Errorf("'%s' does not have smart_meter field", sm.Device.Name)
-	}
-	if len(sm.SmartMeter.EchonetliteProperties) != 6 {
-		return nil, fmt.Errorf("'%s' has incorrect echonetlite_properties", sm.Device.Name)
 	}
 	var info EnergyInfo
 	var err error
