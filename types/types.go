@@ -1,6 +1,8 @@
 package types
 
-import "time"
+import (
+	"time"
+)
 
 type User struct {
 	ID        string `json:"id"`
@@ -43,4 +45,39 @@ type GetDevicesResult struct {
 	Meta       *Meta
 	Devices    []*Device
 	IsCache    bool
+}
+
+type GetAppliancesResult struct {
+	StatusCode int
+	Meta       *Meta
+	Appliances []*Appliance
+	IsCache    bool
+}
+
+type Appliance struct {
+	ID         string      `json:"id"`
+	Device     *Device     `json:"device"`
+	Model      *Model      `json:"model"`
+	Type       string      `json:"type"`
+	Nickname   string      `json:"nickname"`
+	Image      string      `json:"image"`
+	SmartMeter *SmartMeter `json:"smart_meter"`
+}
+
+type Model struct {
+	ID           string `json:"id"`
+	Manufacturer string `json:"manufacturer"`
+	Name         string `json:"name"`
+	Image        string `json:"image"`
+}
+
+type SmartMeter struct {
+	EchonetliteProperties []*EchonetliteProperty `json:"echonetlite_properties"`
+}
+
+type EchonetliteProperty struct {
+	Name      string    `json:"name"`
+	Epc       int       `json:"epc"`
+	Val       string    `json:"val"`
+	UpdatedAt time.Time `json:"updated_at"`
 }

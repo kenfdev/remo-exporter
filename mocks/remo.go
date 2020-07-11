@@ -5,9 +5,10 @@
 package mocks
 
 import (
+	reflect "reflect"
+
 	gomock "github.com/golang/mock/gomock"
 	types "github.com/kenfdev/remo-exporter/types"
-	reflect "reflect"
 )
 
 // MockRemoGatherer is a mock of RemoGatherer interface
@@ -41,7 +42,20 @@ func (m *MockRemoGatherer) GetDevices() (*types.GetDevicesResult, error) {
 	return ret0, ret1
 }
 
+// GetAppliances mocks base method
+func (m *MockRemoGatherer) GetAppliances() (*types.GetAppliancesResult, error) {
+	ret := m.ctrl.Call(m, "GetAppliances")
+	ret0, _ := ret[0].(*types.GetAppliancesResult)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
 // GetDevices indicates an expected call of GetDevices
 func (mr *MockRemoGathererMockRecorder) GetDevices() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDevices", reflect.TypeOf((*MockRemoGatherer)(nil).GetDevices))
+}
+
+// GetAppliances indicates an expected call of GetAppliances
+func (mr *MockRemoGathererMockRecorder) GetAppliances() *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAppliances", reflect.TypeOf((*MockRemoGatherer)(nil).GetAppliances))
 }
