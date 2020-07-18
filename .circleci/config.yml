@@ -14,8 +14,8 @@ version: 2
 jobs:
   build:
     docker:
-      - image: circleci/golang:1.11.5
-    working_directory: /go/src/github.com/kenfdev/remo-exporter
+      - image: cimg/go:1.13
+    working_directory: ~/go/src/github.com/kenfdev/remo-exporter
     steps:
       - checkout
       - run:
@@ -28,8 +28,8 @@ jobs:
 
   test:
     docker:
-      - image: circleci/golang:1.11.5
-    working_directory: /go/src/github.com/kenfdev/remo-exporter
+      - image: cimg/go:1.13
+    working_directory: ~/go/src/github.com/kenfdev/remo-exporter
     steps:
       - checkout
       - run:
@@ -67,26 +67,18 @@ jobs:
 
 workflows:
   version: 2
-  build-master:
+  build-and-deploy:
     jobs:
-      - build:
-          filters: *filter-only-master
-      - test:
-          filters: *filter-only-master
+      - build
+      - test
       - remo-docker-master:
           requires:
             - build
             - test
           filters: *filter-only-master
-
-  release:
-    jobs:
-      - build:
-          filters: *filter-only-release
-      - test:
-          filters: *filter-only-release
       - remo-docker-release:
           requires:
             - build
             - test
           filters: *filter-only-release
+

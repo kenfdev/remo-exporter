@@ -7,10 +7,10 @@ EXTRA_OPTS="$@"
 CCARMV7=arm-linux-gnueabihf-gcc
 CCARM64=aarch64-linux-gnu-gcc
 
-GOPATH=/go
+GOPATH=~/go
 REPO_PATH=$GOPATH/src/github.com/kenfdev/remo-exporter
 
-cd /go/src/github.com/kenfdev/remo-exporter
+cd ~/go/src/github.com/kenfdev/remo-exporter
 echo "current dir: $(pwd)"
 
 echo "Build arguments: $OPT"

@@ -3,7 +3,7 @@ coverage:
     project:
       default:
         # basic
-        target: 80%
+        target: 70%
         threshold: null
         base: auto
         # advanced
@@ -17,7 +17,7 @@ coverage:
     patch:
       default:
         # basic
-        target: 80%
+        target: 50%
         threshold: null
         base: auto
         # advanced
