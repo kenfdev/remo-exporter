@@ -76,9 +76,8 @@ workflows:
             - build
             - test
           filters: *filter-only-master
+  build-and-deploy-release:
+    jobs:
       - remo-docker-release:
-          requires:
-            - build
-            - test
           filters: *filter-only-release
 
