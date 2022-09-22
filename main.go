@@ -9,6 +9,7 @@ import (
 	authHttp "github.com/kenfdev/remo-exporter/http"
 	"github.com/kenfdev/remo-exporter/log"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
@@ -37,7 +38,7 @@ func main() {
 
 	prometheus.MustRegister(e)
 
-	http.Handle(c.MetricsPath, prometheus.Handler())
+	http.Handle(c.MetricsPath, promhttp.Handler())
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`<html>
 		                <head><title>Nature Remo Exporter</title></head>
