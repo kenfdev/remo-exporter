@@ -178,7 +178,7 @@ func (e *Exporter) processMetrics(devicesResult *types.GetDevicesResult, applian
 	for _, sm := range sms {
 		info, err := energyInfo(sm)
 		if err != nil {
-			log.Errorf("failed to get EnergyInfo: %w", err)
+			log.Errorf("failed to get EnergyInfo: %v", err)
 			continue
 		}
 		ch <- prometheus.MustNewConstMetric(normalElectricEnergy, prometheus.CounterValue, float64(info.NormalEnergy), sm.Device.Name, sm.Device.ID)
