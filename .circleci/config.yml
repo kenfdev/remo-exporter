@@ -39,6 +39,19 @@ jobs:
           name: report coverage to codecov
           command: bash <(curl -s https://codecov.io/bash)
 
+  remo-docker-branch:
+    machine:
+      image: ubuntu-2004:202201-02
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+      - run: docker info
+      - run: docker run --privileged linuxkit/binfmt:v0.6
+      - run: cp dist/remo* packaging/docker
+      - run: cd packaging/docker && ./build-image.sh "branch-${CIRCLE_SHA1}"
+      - run: cd packaging/docker && ./push-image.sh "branch-${CIRCLE_SHA1}"
+
   remo-docker-master:
     machine:
       image: ubuntu-2004:202201-02
@@ -71,6 +84,10 @@ workflows:
     jobs:
       - build
       - test
+      - remo-docker-branch:
+          requires:
+            - build
+            - test
       - remo-docker-master:
           requires:
             - build
