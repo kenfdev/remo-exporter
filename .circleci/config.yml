@@ -41,7 +41,7 @@ jobs:
 
   remo-docker-master:
     machine:
-      image: circleci/classic:201808-01
+      image: ubuntu-2004:202201-02
     steps:
       - checkout
       - attach_workspace:
@@ -54,7 +54,7 @@ jobs:
 
   remo-docker-release:
     machine:
-      image: circleci/classic:201808-01
+      image: ubuntu-2004:202201-02
     steps:
       - checkout
       - attach_workspace:
