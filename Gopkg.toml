@@ -1,6 +1,0 @@
-[[override]]
-  name = "gopkg.in/fsnotify.v1"
-  source = "https://github.com/fsnotify/fsnotify.git"
-[[constraint]]
-  name = "github.com/sirupsen/logrus"
-  version = "1.0.6"
