@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=alpine:3.9
+ARG BASE_IMAGE=alpine:3.17
 FROM ${BASE_IMAGE}
 
 ARG EXPORTER_BINARY="remo-exporter-linux-amd64"
