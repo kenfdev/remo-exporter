@@ -9,18 +9,18 @@ type AuthHttpDoer interface {
 }
 
 type AuthHttpClient struct {
-	token string
+	token  string
+	client *http.Client
 }
 
 func NewAuthHttpClient(token string) *AuthHttpClient {
 	return &AuthHttpClient{
-		token: token,
+		token:  token,
+		client: &http.Client{},
 	}
 }
 
 func (c *AuthHttpClient) Get(url string) (*http.Response, error) {
-	var client http.Client
-
 	req, err := http.NewRequest("GET", url, nil)
 	req.Header.Add("Authorization", "Bearer "+c.token)
 
@@ -28,5 +28,5 @@ func (c *AuthHttpClient) Get(url string) (*http.Response, error) {
 		return nil, err
 	}
 
-	return client.Do(req)
+	return c.client.Do(req)
 }
