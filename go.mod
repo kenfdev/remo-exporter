@@ -8,7 +8,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.12.0
 	github.com/onsi/gomega v1.27.10
 	github.com/prometheus/client_golang v1.14.0
-	github.com/prometheus/client_model v0.3.0
+	github.com/prometheus/client_model v0.4.0
 	github.com/sirupsen/logrus v1.9.3
 )
 
@@ -25,7 +25,7 @@ require (
 	golang.org/x/net v0.14.0 // indirect
 	golang.org/x/sys v0.11.0 // indirect
 	golang.org/x/text v0.12.0 // indirect
-	google.golang.org/protobuf v1.28.1 // indirect
+	google.golang.org/protobuf v1.30.0 // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
