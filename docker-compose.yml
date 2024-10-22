@@ -16,7 +16,7 @@ services:
     # volumes:
     #   - ./api-keys:/run/secrets/api-keys
   prom:
-    image: quay.io/prometheus/prometheus:v2.47.0
+    image: quay.io/prometheus/prometheus:v2.55.0
     volumes:
       - ./prometheus.sample.yml:/etc/prometheus/prometheus.yml
     command: '--config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus'
