@@ -27,7 +27,7 @@ type Device struct {
 	CreatedAt         string  `json:"created_at"`
 	UpdatedAt         string  `json:"updated_at"`
 	FirmwareVersion   string  `json:"firmware_version"`
-	TemperatureOffset int     `json:"temperature_offset"`
+	TemperatureOffset float64     `json:"temperature_offset"`
 	HumidityOffset    int     `json:"humidity_offset"`
 	Users             []*User `json:"users"`
 	NewestEvents      *Event  `json:"newest_events"`
