@@ -1,5 +1,11 @@
-#!/bin/bash
+#!/bin/sh
+set -eu
 
-echo "running go test with coverage"
+if [ -n "${CIRCLECI:-}" ]; then
+	echo "Tests moved to GitHub Actions. Refusing the legacy CircleCI upload pipeline." >&2
+	exit 1
+fi
 
-go test $(go list ./... | grep -v integration | grep -v /vendor/ | grep -v /template/)  -race -coverprofile=coverage.txt -covermode=atomic
+repo_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+cd "$repo_dir"
+go test -race -coverprofile=coverage.txt -covermode=atomic ./...

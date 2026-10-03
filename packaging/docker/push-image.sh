@@ -1,48 +1,42 @@
 #!/bin/sh
-set -e
+set -eu
 
-docker login -u "$DOCKER_USER" -p "$DOCKER_PASS"
-
-_remo_exporter_tag=$1
-_docker_repo=${2:-kenfdev/remo-exporter}
-
-# If the tag starts with v, treat this as a official release
-if echo "$_remo_exporter_tag" | grep -q "^v"; then
-  # strip the 'v' from tag
-	_remo_exporter_version=$(echo "${_remo_exporter_tag}" | cut -d "v" -f 2)
-else
-	_remo_exporter_version=$_remo_exporter_tag
+if [ "${1:-}" != --publish ] || [ "$#" -lt 2 ] || [ "$#" -gt 3 ]; then
+	echo "Publication is disabled by default. Usage: $0 --publish TAG [REPOSITORY]" >&2
+	exit 2
+fi
+if [ -n "${CI:-}${CIRCLECI:-}${GITHUB_ACTIONS:-}" ]; then
+	echo 'Image publication is disabled in CI.' >&2
+	exit 1
 fi
 
+tag=$2
+repo=${3:-kenfdev/remo-exporter}
+version=${tag#v}
+if ! printf '%s\n' "$version" | grep -Eq '^[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,127}$'; then
+	echo 'Invalid image tag.' >&2
+	exit 2
+fi
 
-export DOCKER_CLI_EXPERIMENTAL=enabled
-
-echo "pushing ${_docker_repo}:${_remo_exporter_version}"
-
-docker_push_all () {
-	repo=$1
-	tag=$2
-
-	# Push each image individually
-	docker push "${repo}:${tag}"
-	docker push "${repo}-linux-arm32v7:${tag}"
-	docker push "${repo}-linux-arm64v8:${tag}"
-
-	# Create and push a multi-arch manifest
-	docker manifest create "${repo}:${tag}" \
-		"${repo}:${tag}" \
-  	"${repo}-linux-arm32v7:${tag}" \
-		"${repo}-linux-arm64v8:${tag}"
-
-	docker manifest push "${repo}:${tag}"
+docker_push_all() {
+	publish_tag=$1
+	for suffix in '' -linux-arm32v7 -linux-arm64v8; do
+		docker push "$repo$suffix:$publish_tag"
+	done
+	docker manifest create --amend "$repo:$publish_tag" \
+		"$repo:$publish_tag" \
+		"$repo-linux-arm32v7:$publish_tag" \
+		"$repo-linux-arm64v8:$publish_tag"
+	docker manifest annotate "$repo:$publish_tag" "$repo-linux-arm32v7:$publish_tag" \
+		--os linux --arch arm --variant v7
+	docker manifest push --purge "$repo:$publish_tag"
 }
 
-docker_push_all "${_docker_repo}" "${_remo_exporter_version}"
-
-if echo "$_remo_exporter_tag" | grep -q "^v"; then
-	echo "pushing ${_docker_repo}:latest"
-	docker_push_all "${_docker_repo}" "latest"
-elif echo "$_remo_exporter_tag" | grep -q "master"; then
-	docker_push_all "${_docker_repo}" "master"
-	docker push "kenfdev/remo-exporter-dev:${_remo_exporter_version}"
-fi
+docker_push_all "$version"
+case "$tag" in
+	v*) docker_push_all latest ;;
+	master*)
+		docker_push_all master
+		docker push "$repo-dev:$version"
+		;;
+esac

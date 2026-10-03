@@ -12,7 +12,7 @@ services:
   prom:
     image: quay.io/prometheus/prometheus:v2.55.1
     volumes:
-      - ./prometheus.sample.yml:/etc/prometheus/prometheus.yml
+      - ../prometheus.sample.yml:/etc/prometheus/prometheus.yml
     command: '--config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus'
     ports:
       - 9090:9090
@@ -27,4 +27,4 @@ services:
 
 secrets:
   api-keys:
-    file: ./api-keys
+    external: true

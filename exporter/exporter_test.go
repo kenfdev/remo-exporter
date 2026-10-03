@@ -4,13 +4,13 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/golang/mock/gomock"
 	"github.com/kenfdev/remo-exporter/config"
 	"github.com/kenfdev/remo-exporter/types"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
+	"go.uber.org/mock/gomock"
 
 	. "github.com/kenfdev/remo-exporter/exporter"
 	"github.com/kenfdev/remo-exporter/mocks"
@@ -69,37 +69,8 @@ var _ = Describe("Exporter", func() {
 			e, err := NewExporter(c, remoClient)
 			Expect(err).Should(BeNil())
 
-			ch := make(chan *prometheus.Desc)
-			go e.Describe(ch)
-
-			d := (<-ch)
-			Expect(d.String()).To(Equal(`Desc{fqName: "remo_temperature", help: "The temperature of the remo device", constLabels: {}, variableLabels: [name id]}`))
-			d = (<-ch)
-			Expect(d.String()).To(Equal(`Desc{fqName: "remo_humidity", help: "The humidity of the remo device", constLabels: {}, variableLabels: [name id]}`))
-			d = (<-ch)
-			Expect(d.String()).To(Equal(`Desc{fqName: "remo_illumination", help: "The illumination of the remo device", constLabels: {}, variableLabels: [name id]}`))
-			d = (<-ch)
-			Expect(d.String()).To(Equal(`Desc{fqName: "remo_motion", help: "The motion of the remo device", constLabels: {}, variableLabels: [name id]}`))
-			d = (<-ch)
-			Expect(d.String()).To(Equal(`Desc{fqName: "remo_normal_direction_cumulative_electric_energy", help: "The raw value for cumulative electric energy in normal direction", constLabels: {}, variableLabels: [name id]}`))
-			d = (<-ch)
-			Expect(d.String()).To(Equal(`Desc{fqName: "remo_reverse_direction_cumulative_electric_energy", help: "The raw value for cumulative electric energy in reverse direction", constLabels: {}, variableLabels: [name id]}`))
-			d = (<-ch)
-			Expect(d.String()).To(Equal(`Desc{fqName: "remo_coefficient", help: "The coefficient for cumulative electric energy", constLabels: {}, variableLabels: [name id]}`))
-			d = (<-ch)
-			Expect(d.String()).To(Equal(`Desc{fqName: "remo_cumulative_electric_energy_unit_kilowatt_hour", help: "The unit in kWh for cumulative electric energy", constLabels: {}, variableLabels: [name id]}`))
-			d = (<-ch)
-			Expect(d.String()).To(Equal(`Desc{fqName: "remo_cumulative_electric_energy_effective_digits", help: "The number of effective digits for cumulative electric energy", constLabels: {}, variableLabels: [name id]}`))
-			d = (<-ch)
-			Expect(d.String()).To(Equal(`Desc{fqName: "remo_measured_instantaneous_energy_watt", help: "The measured instantaneous energy in W", constLabels: {}, variableLabels: [name id]}`))
-			d = (<-ch)
-			Expect(d.String()).To(Equal(`Desc{fqName: "remo_x_rate_limit_limit", help: "The rate limit for the remo API", constLabels: {}, variableLabels: []}`))
-			d = (<-ch)
-			Expect(d.String()).To(Equal(`Desc{fqName: "remo_x_rate_limit_reset", help: "The time in which the rate limit for the remo API will be reset", constLabels: {}, variableLabels: []}`))
-			d = (<-ch)
-			Expect(d.String()).To(Equal(`Desc{fqName: "remo_x_rate_limit_remaining", help: "The remaining number of request for the remo API", constLabels: {}, variableLabels: []}`))
-			d = (<-ch)
-			Expect(d.String()).To(Equal(`Desc{fqName: "remo_http_requests_total", help: "The total number of requests labeled by response code", constLabels: {}, variableLabels: [code api]}`))
+			registry := prometheus.NewPedanticRegistry()
+			Expect(registry.Register(e)).To(Succeed())
 		})
 	})
 

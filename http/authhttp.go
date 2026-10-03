@@ -2,6 +2,7 @@ package http
 
 import (
 	"net/http"
+	"time"
 )
 
 type AuthHttpDoer interface {
@@ -16,17 +17,16 @@ type AuthHttpClient struct {
 func NewAuthHttpClient(token string) *AuthHttpClient {
 	return &AuthHttpClient{
 		token:  token,
-		client: &http.Client{},
+		client: &http.Client{Timeout: 5 * time.Second},
 	}
 }
 
 func (c *AuthHttpClient) Get(url string) (*http.Response, error) {
 	req, err := http.NewRequest("GET", url, nil)
-	req.Header.Add("Authorization", "Bearer "+c.token)
-
 	if err != nil {
 		return nil, err
 	}
 
+	req.Header.Add("Authorization", "Bearer "+c.token)
 	return c.client.Do(req)
 }

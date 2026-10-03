@@ -1,10 +1,13 @@
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: prometheus
   namespace: remo
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
   template:
     metadata:
       labels:
@@ -12,7 +15,7 @@ spec:
     spec:
       containers:
         - name: prometheus
-          image: functions/prometheus:2.2.0-armhf
+          image: quay.io/prometheus/prometheus:v2.55.1
           command:
             - 'prometheus'
             - '--config.file=/etc/prometheus/prometheus.yml'
@@ -29,9 +32,6 @@ spec:
             - mountPath: /etc/prometheus/prometheus.yml
               name: prometheus-config
               subPath: prometheus.yml
-            # - mountPath: /etc/prometheus/alert.rules.yml
-            #   name: prometheus-config
-            #   subPath: alert.rules.yml
       volumes:
         - name: prometheus-config
           configMap:
@@ -40,6 +40,3 @@ spec:
               - key: prometheus.yml
                 path: prometheus.yml
                 mode: 0644
-              # - key: alert.rules.yml
-              #   path: alert.rules.yml
-              #   mode: 0644

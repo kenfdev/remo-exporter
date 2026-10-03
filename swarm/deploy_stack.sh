@@ -1,6 +1,7 @@
 #!/bin/sh
 
-BASEDIR=$(dirname "$0")
-COMPOSE_FILE="${BASEDIR}/../docker-compose.yml"
+set -eu
 
-docker stack deploy func --compose-file ${COMPOSE_FILE}
+BASEDIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+
+exec docker stack deploy func --compose-file "${BASEDIR}/swarm/docker-compose.yml"

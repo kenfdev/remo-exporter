@@ -16,6 +16,12 @@ const (
 
 // Metrics descriptions
 var (
+	deviceOnline = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "device", "online"),
+		"Whether the remo device is online (1) or offline (0)",
+		[]string{"name", "id"}, nil,
+	)
+
 	temperature = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, "", "temperature"),
 		"The temperature of the remo device",
@@ -103,9 +109,8 @@ var (
 	)
 )
 
-// Exporter collects ECS clusters metrics
 type Exporter struct {
-	client RemoGatherer // Custom ECS client to get information from the clusters
+	client RemoGatherer
 }
 
 // NewExporter returns an initialized exporter
@@ -117,6 +122,7 @@ func NewExporter(config *config.Config, client RemoGatherer) (*Exporter, error) 
 
 // Describe is to describe the metrics for Prometheus
 func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
+	ch <- deviceOnline
 	ch <- temperature
 	ch <- humidity
 	ch <- illumination
@@ -157,6 +163,13 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 
 func (e *Exporter) processMetrics(devicesResult *types.GetDevicesResult, appliancesResult *types.GetAppliancesResult, ch chan<- prometheus.Metric) error {
 	for _, d := range devicesResult.Devices {
+		if d.Online != nil {
+			var value float64
+			if *d.Online {
+				value = 1
+			}
+			ch <- prometheus.MustNewConstMetric(deviceOnline, prometheus.GaugeValue, value, d.Name, d.ID)
+		}
 		if d.NewestEvents == nil {
 			continue
 		}
