@@ -1,49 +1,44 @@
 #!/bin/sh
+set -eu
 
-_remo_exporter_tag=$1
-_docker_repo=${2:-kenfdev/remo-exporter}
-
-# If the tag starts with v, treat this as a official release
-if echo "$_remo_exporter_tag" | grep -q "^v"; then
-	_remo_exporter_version=$(echo "${_remo_exporter_tag}" | cut -d "v" -f 2)
-else
-	_remo_exporter_version=$_remo_exporter_tag
+if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
+	echo "Usage: $0 TAG [REPOSITORY]" >&2
+	exit 2
 fi
 
-echo "Building ${_docker_repo}:${_remo_exporter_version}"
-
-export DOCKER_CLI_EXPERIMENTAL=enabled
-
-# Build remo-exporter image for a specific arch
-docker_build () {
-	base_image=$1
-	exporter_binary=$2
-	tag=$3
-
-  docker build \
-		--build-arg BASE_IMAGE=${base_image} \
-		--build-arg EXPORTER_BINARY=${exporter_binary} \
-		--tag "${tag}" \
-		--no-cache=true .
-}
-
-# Tag docker images of all architectures
-docker_tag_all () {
-	repo=$1
-	tag=$2
-	docker tag "${_docker_repo}:${_remo_exporter_version}" "${repo}:${tag}"
-	docker tag "${_docker_repo}-linux-arm32v7:${_remo_exporter_version}" "${repo}-linux-arm32v7:${tag}"
-	docker tag "${_docker_repo}-linux-arm64v8:${_remo_exporter_version}" "${repo}-linux-arm64v8:${tag}"
-}
-
-docker_build "alpine:3.9" "remo-exporter-linux-amd64" "${_docker_repo}:${_remo_exporter_version}"
-docker_build "arm32v6/alpine:3.9" "remo-exporter-linux-armv7" "${_docker_repo}-linux-arm32v7:${_remo_exporter_version}"
-docker_build "arm64v8/alpine:3.9" "remo-exporter-linux-arm64" "${_docker_repo}-linux-arm64v8:${_remo_exporter_version}"
-
-# Tag as 'latest' for official release; otherwise tag as kenfdev/remo-exporter:master
-if echo "$_remo_exporter_tag" | grep -q "^v"; then
-	docker_tag_all "${_docker_repo}" "latest"
-else
-	docker_tag_all "${_docker_repo}" "master"
-	docker tag "${_docker_repo}:${_remo_exporter_version}" "kenfdev/remo-exporter-dev:${_remo_exporter_version}"
+tag=$1
+repo=${2:-kenfdev/remo-exporter}
+version=${tag#v}
+if ! printf '%s\n' "$version" | grep -Eq '^[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,127}$'; then
+	echo 'Invalid image tag.' >&2
+	exit 2
 fi
+
+repo_dir=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
+cd "$repo_dir"
+
+while read -r platform binary suffix; do
+	docker build \
+		--platform "$platform" \
+		--build-arg "EXPORTER_BINARY=remo-exporter-linux-$binary" \
+		--tag "$repo$suffix:$version" \
+		--file packaging/docker/Dockerfile dist
+done <<'ARCHITECTURES'
+linux/amd64 amd64
+linux/arm/v7 armv7 -linux-arm32v7
+linux/arm64 arm64 -linux-arm64v8
+ARCHITECTURES
+
+case "$tag" in
+	v*) alias=latest ;;
+	*) alias=master ;;
+esac
+
+for suffix in '' -linux-arm32v7 -linux-arm64v8; do
+	docker tag "$repo$suffix:$version" "$repo$suffix:$alias"
+done
+
+case "$tag" in
+	v*) ;;
+	*) docker tag "$repo:$version" "$repo-dev:$version" ;;
+esac

@@ -1,107 +1,16 @@
-aliases:
-  # Workflow filters
-  - &filter-only-release
-    branches:
-      ignore: /.*/
-    tags:
-      only: /^v[0-9]+(\.[0-9]+){2}(-.+|[^-.]*)$/
-  - &filter-only-master
-    branches:
-      only: master
-
-version: 2
+version: 2.1
 
 jobs:
-  build:
+  ci-moved:
     docker:
-      - image: cimg/go:1.21
-    working_directory: ~/go/src/github.com/kenfdev/remo-exporter
+      - image: alpine:3.24.2
     steps:
-      - checkout
       - run:
-          name: build and package remo-exporter
-          command: './scripts/build-bin.sh'
-      - persist_to_workspace:
-          root: .
-          paths:
-            - dist/remo*
-
-  test:
-    docker:
-      - image: cimg/go:1.21
-    working_directory: ~/go/src/github.com/kenfdev/remo-exporter
-    steps:
-      - checkout
-      - run:
-          name: build backend and run go tests with coverage
-          command: './scripts/run-test-with-coverage.sh'
-      - run:
-          name: report coverage to codecov
-          command: bash <(curl -s https://codecov.io/bash)
-
-  remo-docker-branch:
-    machine:
-      image: ubuntu-2004:202201-02
-    steps:
-      - checkout
-      - attach_workspace:
-          at: .
-      - run: docker info
-      - run: docker run --privileged linuxkit/binfmt:v0.6
-      - run: cp dist/remo* packaging/docker
-      - run: cd packaging/docker && ./build-image.sh "branch-${CIRCLE_SHA1}"
-      - run: cd packaging/docker && ./push-image.sh "branch-${CIRCLE_SHA1}"
-
-  remo-docker-master:
-    machine:
-      image: ubuntu-2004:202201-02
-    steps:
-      - checkout
-      - attach_workspace:
-          at: .
-      - run: docker info
-      - run: docker run --privileged linuxkit/binfmt:v0.6
-      - run: cp dist/remo* packaging/docker
-      - run: cd packaging/docker && ./build-image.sh "master-${CIRCLE_SHA1}"
-      - run: cd packaging/docker && ./push-image.sh "master-${CIRCLE_SHA1}"
-
-  remo-docker-release:
-    machine:
-      image: ubuntu-2004:202201-02
-    steps:
-      - checkout
-      - attach_workspace:
-          at: .
-      - run: docker info
-      - run: docker run --privileged linuxkit/binfmt:v0.6
-      - run: cp dist/remo* packaging/docker
-      - run: cd packaging/docker && ./build-image.sh "${CIRCLE_TAG}"
-      - run: cd packaging/docker && ./push-image.sh "${CIRCLE_TAG}"
+          name: Use GitHub Actions
+          shell: /bin/sh -eu
+          command: echo 'Builds and tests run in GitHub Actions. CircleCI publication is disabled.'
 
 workflows:
-  version: 2
-  build-and-deploy:
+  no-publish:
     jobs:
-      - build
-      - test
-      - remo-docker-branch:
-          requires:
-            - build
-            - test
-      - remo-docker-master:
-          requires:
-            - build
-            - test
-          filters: *filter-only-master
-  build-and-deploy-release:
-    jobs:
-      - build:
-          filters: *filter-only-release
-      - test:
-          filters: *filter-only-release
-      - remo-docker-release:
-          requires:
-            - build
-            - test
-          filters: *filter-only-release
-
+      - ci-moved

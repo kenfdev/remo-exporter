@@ -2,9 +2,10 @@ package exporter
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/kenfdev/remo-exporter/config"
@@ -37,6 +38,8 @@ type AppliancesMetrics struct {
 
 // RemoClient is a http client who requests resources from the Remo API
 type RemoClient struct {
+	devicesMu                          sync.Mutex
+	appliancesMu                       sync.Mutex
 	authClient                         authHttp.AuthHttpDoer
 	baseURL                            string
 	oauthToken                         string
@@ -90,6 +93,9 @@ func getMetaStats(header http.Header) *types.Meta {
 
 // GetDevices will get the devices from the Remo API
 func (c *RemoClient) GetDevices() (*types.GetDevicesResult, error) {
+	c.devicesMu.Lock()
+	defer c.devicesMu.Unlock()
+
 	now := int(time.Now().Unix())
 
 	if now < c.cacheDevicesExpirationTimestamp {
@@ -113,11 +119,13 @@ func (c *RemoClient) GetDevices() (*types.GetDevicesResult, error) {
 
 	data := []*types.Device{}
 	if resp.StatusCode == 200 {
-		bodyBytes, err := ioutil.ReadAll(resp.Body)
+		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return nil, err
 		}
-		json.Unmarshal(bodyBytes, &data)
+		if err := json.Unmarshal(bodyBytes, &data); err != nil {
+			return nil, err
+		}
 
 		// only update invalidation time on successful requests
 		c.cacheDevicesExpirationTimestamp = now + c.cacheInvalidationSeconds
@@ -140,6 +148,9 @@ func (c *RemoClient) GetDevices() (*types.GetDevicesResult, error) {
 }
 
 func (c *RemoClient) GetAppliances() (*types.GetAppliancesResult, error) {
+	c.appliancesMu.Lock()
+	defer c.appliancesMu.Unlock()
+
 	now := int(time.Now().Unix())
 
 	if now < c.cacheAppliancesExpirationTimestamp {
@@ -163,7 +174,7 @@ func (c *RemoClient) GetAppliances() (*types.GetAppliancesResult, error) {
 
 	var data []*types.Appliance
 	if resp.StatusCode == 200 {
-		bodyBytes, err := ioutil.ReadAll(resp.Body)
+		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return nil, err
 		}
