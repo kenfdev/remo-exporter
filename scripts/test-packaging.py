@@ -29,7 +29,10 @@ with open(os.environ['COMMAND_LOG'], 'a') as log:
         'env': {{key: os.environ.get(key) for key in
                 ['GOOS', 'GOARCH', 'GOARM', 'CGO_ENABLED']}},
     }}) + '\\n')
-if sys.argv[1] == os.environ.get('FAIL_COMMAND'):
+with open(os.environ['COMMAND_LOG']) as log:
+    count = len(log.readlines())
+if (sys.argv[1] == os.environ.get('FAIL_COMMAND')
+        or str(count) == os.environ.get('FAIL_AT')):
     sys.exit(9)
 """
         for command in ("docker", "go"):
@@ -41,7 +44,7 @@ if sys.argv[1] == os.environ.get('FAIL_COMMAND'):
             "PATH": f"{self.directory}{os.pathsep}{os.environ['PATH']}",
             "COMMAND_LOG": str(self.log),
         }
-        for name in ("CI", "CIRCLECI", "GITHUB_ACTIONS", "FAIL_COMMAND"):
+        for name in ("CI", "CIRCLECI", "GITHUB_ACTIONS", "FAIL_COMMAND", "FAIL_AT"):
             self.environment.pop(name, None)
 
     def run_script(self, path, *arguments, environment=None):
@@ -165,6 +168,75 @@ if sys.argv[1] == os.environ.get('FAIL_COMMAND'):
             self.assertEqual(group[5], [
                 "manifest", "push", "--purge", f"kenfdev/remo-exporter:{tag}",
             ])
+
+    def test_release_channels_only_promote_prefixed_stable_versions(self):
+        for tag, promote in (
+            ("v0.9.0-rc.1", False), ("0.9.0-rc.1", False),
+            ("v1.2.3-alpha", False), ("1.2.3-beta.2", False),
+            ("v1.2.3-0", False), ("v1.2.3-01a", False),
+            ("v1.2.3-x-y.9", False), ("v0.0.0", True),
+            ("v1.2.3", True), ("1.2.3", False),
+        ):
+            for script in ("build-image.sh", "push-image.sh"):
+                with self.subTest(tag=tag, script=script):
+                    self.log.unlink(missing_ok=True)
+                    args = ("--publish", tag) if script == "push-image.sh" else (tag,)
+                    result = self.run_script(f"packaging/docker/{script}", *args)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    commands = [entry["args"] for entry in self.commands()]
+                    refs = [arg for command in commands for arg in command
+                            if arg.startswith("kenfdev/")]
+                    self.assertTrue(refs)
+                    allowed = {tag.removeprefix("v")}
+                    if promote:
+                        allowed.add("latest")
+                    self.assertEqual({ref.rsplit(":", 1)[1] for ref in refs}, allowed)
+                    self.assertFalse(any("-dev:" in ref for ref in refs))
+                    self.assertEqual(len(commands),
+                                     (12 if promote else 6) if script == "push-image.sh"
+                                     else (6 if promote else 3))
+
+    def test_malformed_release_tags_fail_before_any_docker_command(self):
+        for tag in ("v1", "1.2", "v01.2.3", "1.02.3", "v1.2.03",
+                    "v1.2.3-", "1.2.3-rc..1", "v1.2.3-01", "1.2.3-rc.01",
+                    "v1.2.3+build.1", "1.2.3+build.1", "vlatest",
+                    "v1.2.3_rc1", "v1.2.3\n", "branch\nname", "v1.2.3\nbad", "v" + "1" * 129):
+            for script in ("build-image.sh", "push-image.sh"):
+                with self.subTest(tag=tag, script=script):
+                    args = ("--publish", tag) if script == "push-image.sh" else (tag,)
+                    result = self.run_script(f"packaging/docker/{script}", *args)
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertEqual(self.commands(), [])
+
+    def test_failed_version_publication_never_reaches_latest(self):
+        for step in range(1, 7):
+            with self.subTest(step=step):
+                self.log.unlink(missing_ok=True)
+                result = self.run_script(
+                    "packaging/docker/push-image.sh", "--publish", "v1.2.3",
+                    environment={"FAIL_AT": str(step)},
+                )
+                self.assertEqual(result.returncode, 9)
+                self.assertEqual(len(self.commands()), step)
+                self.assertNotIn(":latest", json.dumps(self.commands()))
+
+    def test_development_build_aliases_are_preserved(self):
+        for tag in ("master-test", "branch-test"):
+            with self.subTest(tag=tag):
+                self.log.unlink(missing_ok=True)
+                result = self.run_script("packaging/docker/build-image.sh", tag)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                commands = [entry["args"] for entry in self.commands()]
+                self.assertEqual(len(commands), 7)
+                self.assertEqual(commands[3:6], [
+                    ["tag", f"kenfdev/remo-exporter{suffix}:{tag}",
+                     f"kenfdev/remo-exporter{suffix}:master"]
+                    for suffix in ("", "-linux-arm32v7", "-linux-arm64v8")
+                ])
+                self.assertEqual(commands[-1], [
+                    "tag", f"kenfdev/remo-exporter:{tag}",
+                    f"kenfdev/remo-exporter-dev:{tag}",
+                ])
 
     def test_custom_repository_never_publishes_to_default_repository(self):
         result = self.run_script(

@@ -12,11 +12,7 @@ fi
 
 tag=$2
 repo=${3:-kenfdev/remo-exporter}
-version=${tag#v}
-if ! printf '%s\n' "$version" | grep -Eq '^[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,127}$'; then
-	echo 'Invalid image tag.' >&2
-	exit 2
-fi
+. "$(dirname -- "$0")/release-channel.sh"
 
 docker_push_all() {
 	publish_tag=$1
@@ -33,9 +29,9 @@ docker_push_all() {
 }
 
 docker_push_all "$version"
-case "$tag" in
-	v*) docker_push_all latest ;;
-	master*)
+case "$channel:$tag" in
+	stable:*) docker_push_all latest ;;
+	development:master*)
 		docker_push_all master
 		docker push "$repo-dev:$version"
 		;;
