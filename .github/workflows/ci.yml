@@ -1,50 +1,121 @@
-name: CI
+# Preparation branch only: never merge this replacement over the regular CI.
+name: RC image preparation
 
 on:
   push:
-  pull_request:
+    branches: ['prepare/rc-0.9.0-20261004']
 
 permissions:
   contents: read
 
+concurrency:
+  group: rc-0.9.0-preparation
+  cancel-in-progress: false
+
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        go: ['1.26.x', '1.27.x']
+  prepare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      SOURCE_SHA: a19d6f1b9051f09bd91e6b3e008e9588a631fc05
+      WORKFLOW_SHA: ${{ github.sha }}
+      BASE_IMAGE: alpine@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
+      RC: 0.9.0-rc.1
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: a19d6f1b9051f09bd91e6b3e008e9588a631fc05
           persist-credentials: false
+      - name: Record source and runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          mkdir evidence
+          printf 'source_sha=%s\nworkflow_sha=%s\nbase_image=%s\nrc=%s\n' \
+            "$SOURCE_SHA" "$WORKFLOW_SHA" "$BASE_IMAGE" "$RC" > evidence/provenance.txt
+          uname -a >> evidence/provenance.txt
+          docker version >> evidence/provenance.txt
+          printf 'platform\tbuild\truntime\n' > evidence/results.tsv
+          printf 'Nature API and physical hardware: untested; fixture only.\n' > evidence/limitations.txt
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: ${{ matrix.go }}
+          go-version: '1.27.1'
           cache: false
-      - name: Check module checksums
-        run: go mod verify
-      - name: Check module tidiness
-        run: go mod tidy && git diff --exit-code -- go.mod go.sum
-      - name: Check formatting
-        run: test -z "$(gofmt -l .)"
-      - name: Vet
-        run: go vet ./...
-      - name: Test with race detector and coverage
-        run: ./scripts/run-test-with-coverage.sh
-      - name: Test packaging safety
-        run: python3 scripts/test-packaging.py
-      - name: Cross-build Linux binaries
-        run: ./scripts/build-bin.sh
-      - name: Smoke-test the binary
-        run: python3 scripts/smoke-test.py dist/remo-exporter-linux-amd64
-      - name: Build the amd64 container
-        if: matrix.go == '1.27.x'
-        run: docker build --platform linux/amd64 --file packaging/docker/Dockerfile --tag remo-exporter:test dist
-      - name: Smoke-test the container
-        if: matrix.go == '1.27.x'
-        run: python3 scripts/smoke-test.py --image remo-exporter:test
-      - name: Check known Go vulnerabilities
-        if: matrix.go == '1.27.x'
-        run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
+      - name: Enable temporary ARM emulation
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4
+        with:
+          image: tonistiigi/binfmt@sha256:400a4873b838d1b89194d982c45e5fb3cda4593fbfd7e08a02e76b03b21166f0
+          platforms: arm64,arm
+          cache-image: false
+      - name: Verify source and cross-build binaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          exec > >(tee evidence/source-checks.log) 2>&1
+          go version | tee -a evidence/provenance.txt
+          go mod download
+          go mod verify
+          go mod tidy
+          git diff --exit-code -- go.mod go.sum
+          test -z "$(gofmt -l .)"
+          go vet ./...
+          go test -race ./...
+          python3 scripts/test-packaging.py
+          go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
+          ./scripts/build-bin.sh
+          sha256sum dist/remo-exporter-linux-* > evidence/binary-sha256.txt
+          python3 scripts/smoke-test.py dist/remo-exporter-linux-amd64
+          printf 'amd64 binary\tpass\tnative pass\n' >> evidence/results.tsv
+      - name: Build and smoke-test the three RC images
+        shell: bash
+        run: |
+          set -euo pipefail
+          exec > >(tee evidence/images.log) 2>&1
+          docker buildx inspect >> evidence/provenance.txt
+          docker buildx imagetools inspect --raw kenfdev/remo-exporter:latest > evidence/latest-before.json
+          docker buildx imagetools inspect kenfdev/remo-exporter:latest > evidence/latest-before.txt
+          images=()
+          while read -r platform binary suffix arch mode; do
+            image="kenfdev/remo-exporter${suffix#NONE}:$RC"
+            docker build --platform "$platform" \
+              --build-arg "BASE_IMAGE=$BASE_IMAGE" \
+              --build-arg "EXPORTER_BINARY=remo-exporter-linux-$binary" \
+              --tag "$image" --file packaging/docker/Dockerfile dist
+            docker image inspect "$image" > "evidence/image-$binary.json"
+            actual=$(docker image inspect --format '{{.Os}}/{{.Architecture}}' "$image")
+            test "$actual" = "linux/$arch"
+            test "$(docker image inspect --format '{{.Config.User}}' "$image")" = exporter
+            if [ "$arch" = arm ]; then
+              test "$(docker image inspect --format '{{.Variant}}' "$image")" = v7
+            fi
+            DOCKER_DEFAULT_PLATFORM="$platform" python3 scripts/smoke-test.py --image "$image"
+            printf '%s\tpass\t%s pass\n' "$platform" "$mode" >> evidence/results.tsv
+            images+=("$image")
+          done <<'PLATFORMS'
+          linux/amd64 amd64 NONE amd64 native
+          linux/arm64 arm64 -linux-arm64v8 arm64 emulated
+          linux/arm/v7 armv7 -linux-arm32v7 arm emulated
+          PLATFORMS
+          docker buildx imagetools inspect --raw kenfdev/remo-exporter:latest > evidence/latest-after.json
+          cmp evidence/latest-before.json evidence/latest-after.json
+          docker image ls --format '{{.Repository}}:{{.Tag}}' > evidence/local-tags.txt
+          if grep -Eq '^kenfdev/remo-exporter[^:]*:latest$' evidence/local-tags.txt; then
+            echo 'Unexpected local latest alias' >&2
+            exit 1
+          fi
+          docker save "${images[@]}" | gzip -1 > evidence/rc-images.tar.gz
+          test "$(stat -c %s evidence/rc-images.tar.gz)" -lt 536870912
+          sha256sum evidence/rc-images.tar.gz > evidence/archive-sha256.txt
+          stat -c '%n %s bytes' evidence/rc-images.tar.gz > evidence/archive-size.txt
+          cat evidence/results.tsv >> "$GITHUB_STEP_SUMMARY"
+          cat evidence/archive-size.txt >> "$GITHUB_STEP_SUMMARY"
+      - name: Retain images and evidence for one day
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: rc-0.9.0-rc.1-${{ github.sha }}
+          path: evidence/
+          retention-days: 1
+          compression-level: 0
+          if-no-files-found: error
