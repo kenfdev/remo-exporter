@@ -189,22 +189,11 @@ This check uses a local API fixture. It does not require a Nature Remo token or 
 
 Automatic publishing is disabled. Only an authorized maintainer may publish from a non-CI environment. The push script requires an explicit opt-in and rejects CI invocations.
 
-The image build runs commands for amd64, arm64, and ARMv7. Your Docker builder must support those platforms through native workers or configured emulation. The script does not install emulation.
-
-Build the binaries, then build images for a release tag:
-
-```bash
-./scripts/build-bin.sh
-./packaging/docker/build-image.sh vX.Y.Z
-```
-
-After reviewing the images and authenticating to Docker Hub, explicitly publish them:
-
-```bash
-./packaging/docker/push-image.sh --publish vX.Y.Z
-```
-
-The optional repository argument defaults to `kenfdev/remo-exporter`. Pass the same repository to both image scripts when using another destination. A tag alone never authorizes publishing.
+See [the release procedure](RELEASE.md) for candidate testing, manifest verification,
+stable promotion, recovery from partial publication, and manual GitHub releases.
+Both `vX.Y.Z-rc.N` and `X.Y.Z-rc.N` publish only the version. Only a valid
+prefixed stable version (`vX.Y.Z`) also publishes `latest`; an unprefixed stable
+version is version-only. Build metadata (`+...`) is not supported in Docker tags.
 
 ### Create mocks
 

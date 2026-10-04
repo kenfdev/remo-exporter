@@ -8,11 +8,7 @@ fi
 
 tag=$1
 repo=${2:-kenfdev/remo-exporter}
-version=${tag#v}
-if ! printf '%s\n' "$version" | grep -Eq '^[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,127}$'; then
-	echo 'Invalid image tag.' >&2
-	exit 2
-fi
+. "$(dirname -- "$0")/release-channel.sh"
 
 repo_dir=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 cd "$repo_dir"
@@ -29,16 +25,16 @@ linux/arm/v7 armv7 -linux-arm32v7
 linux/arm64 arm64 -linux-arm64v8
 ARCHITECTURES
 
-case "$tag" in
-	v*) alias=latest ;;
-	*) alias=master ;;
+case "$channel" in
+	stable) alias=latest ;;
+	development) alias=master ;;
+	*) exit 0 ;;
 esac
 
 for suffix in '' -linux-arm32v7 -linux-arm64v8; do
 	docker tag "$repo$suffix:$version" "$repo$suffix:$alias"
 done
 
-case "$tag" in
-	v*) ;;
-	*) docker tag "$repo:$version" "$repo-dev:$version" ;;
+case "$channel" in
+	development) docker tag "$repo:$version" "$repo-dev:$version" ;;
 esac
