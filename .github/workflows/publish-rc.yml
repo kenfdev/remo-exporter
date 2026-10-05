@@ -1,0 +1,90 @@
+# Explicit one-artifact exception. Regular CI and push-image.sh remain unchanged.
+name: Publish verified 0.9.0 RC
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Enter v0.9.0-rc.1 to authorize this exact RC'
+        required: true
+        type: string
+      username_secret_name:
+        description: 'Confirmed existing Docker Hub username secret NAME (not value)'
+        required: true
+        type: string
+      token_secret_name:
+        description: 'Confirmed existing Docker Hub token secret NAME (not value)'
+        required: true
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: publish-remo-0.9.0-rc.1
+  cancel-in-progress: false
+
+env:
+  APPROVED_RC: ${{ inputs.confirm }}
+
+jobs:
+  publish:
+    if: github.repository == 'kenfdev/remo-exporter' && github.ref == 'refs/heads/master' && inputs.confirm == 'v0.9.0-rc.1'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      index_digest: ${{ steps.publish.outputs.index_digest }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Use an isolated temporary registry configuration
+        run: echo "DOCKER_CONFIG=$RUNNER_TEMP/rc-docker" >> "$GITHUB_ENV"
+      - name: Require confirmed credentials without displaying them
+        env:
+          REGISTRY_USER: ${{ secrets[inputs.username_secret_name] }}
+          REGISTRY_TOKEN: ${{ secrets[inputs.token_secret_name] }}
+        run: |
+          test -n "$REGISTRY_USER" && test -n "$REGISTRY_TOKEN" || {
+            echo 'Required existing Docker Hub secrets are unavailable; stopping.' >&2
+            exit 1
+          }
+      - name: Verify exact artifact and load verified images
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/rc-publication/publish.py prepare
+      - name: Authenticate only after verification
+        env:
+          REGISTRY_USER: ${{ secrets[inputs.username_secret_name] }}
+          REGISTRY_TOKEN: ${{ secrets[inputs.token_secret_name] }}
+        run: printf '%s' "$REGISTRY_TOKEN" | docker login --username "$REGISTRY_USER" --password-stdin
+      - name: Publish fixed RC destinations and verify remote digests
+        id: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/rc-publication/publish.py publish
+      - name: Remove temporary registry session
+        if: always()
+        run: |
+          docker logout >/dev/null 2>&1 || true
+          rm -f "$DOCKER_CONFIG/config.json"
+
+  release:
+    needs: publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Create exact source tag and GitHub prerelease after verified images
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERIFIED_INDEX_DIGEST: ${{ needs.publish.outputs.index_digest }}
+        run: python3 scripts/rc-publication/publish.py release
