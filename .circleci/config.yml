@@ -3,7 +3,7 @@ version: 2.1
 jobs:
   ci-moved:
     docker:
-      - image: alpine:3.24.2
+      - image: alpine:3.24.3
     steps:
       - run:
           name: Use GitHub Actions
